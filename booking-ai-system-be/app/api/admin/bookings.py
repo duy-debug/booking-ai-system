@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import get_db, parse_uuid
+from app.core.auth import get_current_admin
 from app.core.exceptions import AppError
 from app.db.models.booking import Booking
 from app.db.models.customer import Customer
@@ -14,7 +15,7 @@ from app.db.models.reservation import Reservation
 from app.db.models.reservation_course import ReservationCourse
 from app.db.models.shop import Shop
 
-router = APIRouter(prefix="/api/admin/bookings", tags=["admin-bookings"])
+router = APIRouter(prefix="/api/admin/bookings", tags=["admin-bookings"], dependencies=[Depends(get_current_admin)])
 
 
 @router.get("")

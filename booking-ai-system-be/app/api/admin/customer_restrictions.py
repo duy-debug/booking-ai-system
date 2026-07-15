@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, Query
 from app.core.exceptions import AppError
+from app.core.auth import get_current_admin
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -13,7 +14,7 @@ from app.api.schemas.customer_restriction import (
 )
 from app.db.models.customer_restriction import CustomerRestriction
 
-router = APIRouter(prefix="/api/admin/customer-restrictions", tags=["admin-restrictions"])
+router = APIRouter(prefix="/api/admin/customer-restrictions", tags=["admin-restrictions"], dependencies=[Depends(get_current_admin)])
 
 
 @router.get("")

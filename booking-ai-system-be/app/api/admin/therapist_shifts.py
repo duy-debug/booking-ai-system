@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, Query
 from app.core.exceptions import AppError
+from app.core.auth import get_current_admin
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -11,7 +12,7 @@ from app.db.models.shop import Shop
 from app.db.models.therapist import Therapist
 from app.db.models.therapist_shift import TherapistShift
 
-router = APIRouter(prefix="/api/admin", tags=["admin-shifts"])
+router = APIRouter(prefix="/api/admin", tags=["admin-shifts"], dependencies=[Depends(get_current_admin)])
 
 
 @router.get("/shops/{shop_id}/therapist-shifts")

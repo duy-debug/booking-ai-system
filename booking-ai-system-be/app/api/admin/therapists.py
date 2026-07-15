@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, Query
 from app.core.exceptions import AppError
+from app.core.auth import get_current_admin
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -10,7 +11,7 @@ from app.api.schemas.therapist import TherapistCreate, TherapistResponse, Therap
 from app.db.models.shop import Shop
 from app.db.models.therapist import Therapist
 
-router = APIRouter(prefix="/api/admin", tags=["admin-therapists"])
+router = APIRouter(prefix="/api/admin", tags=["admin-therapists"], dependencies=[Depends(get_current_admin)])
 
 
 @router.get("/shops/{shop_id}/therapists")

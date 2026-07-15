@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, Query
 from app.core.exceptions import AppError
+from app.core.auth import get_current_admin
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -9,7 +10,7 @@ from app.api.deps import get_db, parse_uuid
 from app.api.schemas.shop import ShopCreate, ShopResponse, ShopUpdate
 from app.db.models.shop import Shop
 
-router = APIRouter(prefix="/api/admin/shops", tags=["admin-shops"])
+router = APIRouter(prefix="/api/admin/shops", tags=["admin-shops"], dependencies=[Depends(get_current_admin)])
 
 
 @router.get("")

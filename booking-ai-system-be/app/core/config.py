@@ -20,6 +20,13 @@ class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: str | None = None
 
+    # Auth / JWT
+    JWT_SECRET: str = "booking-ai-system-jwt-secret-change-in-production-32chars"  # Khóa ký JWT — đổi trong .env
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 1440  # 24h
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD: str = "admin123"  # Đổi trong .env
+
     # CORS — cho phép FE local dev
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
