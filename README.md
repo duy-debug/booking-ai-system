@@ -414,37 +414,37 @@ Tài liệu dự án:
 
 ## Mô hình bảo mật
 
-- Secrets and API keys are loaded only from environment variables.
-- The chatbot does not access Supabase PostgreSQL directly.
-- The chatbot cannot call administration endpoints.
-- Booking mutations require explicit user confirmation.
-- Booking creation uses an idempotency key.
-- Knowledge-base administration endpoints require an internal key.
-- Customer phone numbers and booking data are not stored in Qdrant.
-- Production deployments must terminate traffic through HTTPS.
-- Qdrant should not be exposed directly to the public internet.
+- Secrets và API keys chỉ được load từ environment variables
+- Chatbot không truy cập trực tiếp Supabase PostgreSQL
+- Chatbot không thể gọi administration endpoints
+- Booking mutation yêu cầu người dùng xác nhận rõ ràng
+- Tạo booking sử dụng idempotency key để chống trùng lặp
+- Knowledge-base administration endpoints yêu cầu internal key riêng
+- Số điện thoại và booking data của khách hàng không được lưu trong Qdrant
+- Production deployment bắt buộc terminate traffic qua HTTPS
+- Qdrant không nên expose trực tiếp ra public internet
 
-Vui lòng báo cáo lỗ hổng bảo mật theo kênh riêng, không tạo public issue chứa thông tin nhạy cảm.
+Vui lòng báo cáo lỗ hổng bảo mật qua kênh riêng, không tạo public issue chứa thông tin nhạy cảm.
 
 ---
 
 ## Lộ trình phát triển
 
-- [x] Database schema and SQLAlchemy models
+- [x] Database schema và SQLAlchemy models
 - [x] Alembic migration workflow
 - [x] Administration CRUD APIs
 - [x] Public booking APIs
 - [x] JWT authentication
 - [x] RFC 9457 error handling
-- [x] Standalone chatbot architecture
-- [x] Qdrant-based RAG pipeline
-- [x] Intent routing and confirmation-gated booking tools
-- [ ] Customer booking interface
+- [x] Kiến trúc standalone chatbot
+- [x] RAG pipeline với Qdrant
+- [x] Intent routing và confirmation-gated booking tools
+- [ ] Giao diện đặt lịch cho khách hàng
 - [ ] Admin dashboard
-- [ ] GitHub Actions CI pipeline
+- [ ] CI pipeline với GitHub Actions
 - [ ] Coverage reporting
-- [ ] Structured logging and monitoring
-- [ ] Production reverse proxy and HTTPS configuration
+- [ ] Structured logging và monitoring
+- [ ] Production reverse proxy và HTTPS configuration
 
 ---
 
