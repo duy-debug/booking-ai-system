@@ -23,11 +23,15 @@ class Booking(TimestampMixin, Base):
     customer_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("customers.customer_id"), nullable=False, index=True
     )
+    # DEPRECATED: hai cột này từng dùng cho POS integration.
+    # Sẽ xoá trong migration riêng sau khi backend-chatbot tách ổn định.
+    # Call site vẫn dùng: admin/public bookings API (filter + response),
+    # schema booking.py (response models), alembic migrations (lịch sử).
     pos_booking_code: Mapped[str | None] = mapped_column(
-        String(50), unique=True, index=True  # Mã booking bên POS (có sau khi POS xác nhận)
+        String(50), unique=True, index=True
     )
     pos_sync_status: Mapped[str] = mapped_column(
-        String(20), default="pending", nullable=False  # pending, synced, failed, cancelled
+        String(20), default="pending", nullable=False
     )
     booking_date: Mapped[date] = mapped_column(Date, nullable=False)  # Ngày đặt
     start_time: Mapped[time] = mapped_column(Time, nullable=False)  # Giờ bắt đầu

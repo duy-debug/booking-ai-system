@@ -26,8 +26,6 @@ from app.db.models.reservation import Reservation
 from app.db.models.reservation_course import ReservationCourse
 from app.db.models.shop import Shop
 from app.db.models.therapist import Therapist
-from app.integrations.pos import get_pos_client
-from app.integrations.pos.base import POSBookingData
 
 router = APIRouter(prefix="/api/bookings", tags=["public-booking"])
 
@@ -256,48 +254,6 @@ def create_booking(
                 )
                 db.add(rc)
 
-    # ===== POS Integration: đồng bộ booking code từ POS =====
-    pos = get_pos_client()
-    pos_shop = db.get(Shop, body.shop_id)
-    pos_shop_code = pos_shop.pos_shop_code if pos_shop else ""
-
-    # Chuẩn bị dữ liệu course cho POS
-    pos_courses = []
-    for c in body.courses:
-        course = db_course_map.get(c.course_id)
-        if course:
-            pos_courses.append({
-                "pos_course_code": course.pos_course_code,
-                "course_role": c.course_role,
-                "duration": course.duration_minutes,
-                "price": course.price,
-            })
-
-    # Gửi booking lên POS
-    pos_result = pos.create_booking(POSBookingData(
-        pos_shop_code=pos_shop_code,
-        booking_date=body.booking_date,
-        start_time=body.start_time,
-        end_time=end_time,
-        number_of_people=body.number_of_people,
-        total_duration_minutes=total_duration,
-        customer_phone=body.customer.phone,
-        customer_name=body.customer.name,
-        courses=pos_courses,
-        therapist_ids=assigned_therapist_ids if assigned_therapist_ids else None,
-    ))
-
-    if pos_result.success and pos_result.pos_booking_code:
-        # POS xác nhận thành công → lưu mã
-        booking.pos_booking_code = pos_result.pos_booking_code
-        booking.pos_sync_status = "synced"
-    elif not pos_result.success:
-        # POS thất bại → vẫn tạo booking local, đánh dấu sync failed
-        booking.pos_sync_status = "failed"
-        # Không raise lỗi — booking vẫn tồn tại local, có thể retry sau
-    else:
-        booking.pos_sync_status = "pending"
-
     db.commit()
     db.refresh(booking)
 
@@ -371,17 +327,11 @@ def update_booking(booking_id: str, body: BookingPatchInput, db: Session = Depen
         raise AppError(404, code="BOOKING_NOT_FOUND", detail="Không tìm thấy booking")
 
     if body.status == "cancelled":
-        # Cancel flow — đồng bộ với POS trước
+        # Cancel flow
         if booking.status == "cancelled":
             raise AppError(409, code="BOOKING_ALREADY_CANCELLED", detail="Booking đã bị hủy")
 
-        # Thông báo huỷ cho POS (nếu booking đã synced)
-        if booking.pos_booking_code:
-            pos = get_pos_client()
-            pos.cancel_booking(booking.pos_booking_code, reason=body.cancel_reason)
-
         booking.status = "cancelled"
-        booking.pos_sync_status = "cancelled"
         booking.cancel_reason = body.cancel_reason
         booking.cancelled_at = datetime.now(timezone.utc)
     else:
