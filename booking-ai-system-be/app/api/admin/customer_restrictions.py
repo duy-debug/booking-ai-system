@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from app.core.exceptions import AppError
-from app.core.auth import get_current_admin
+from app.core.auth import require_admin
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, parse_uuid
@@ -11,7 +11,7 @@ from app.schemas.customer_restriction import (
 )
 from app.services.restriction_service import RestrictionService
 
-router = APIRouter(prefix="/api/admin/customer-restrictions", tags=["admin-restrictions"], dependencies=[Depends(get_current_admin)])
+router = APIRouter(prefix="/api/admin/customer-restrictions", tags=["admin-restrictions"], dependencies=[Depends(require_admin)])
 
 
 # Danh sách restriction — lọc theo số điện thoại và trạng thái

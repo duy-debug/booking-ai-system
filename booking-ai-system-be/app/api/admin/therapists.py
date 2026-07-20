@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, Query
 from app.core.exceptions import AppError
-from app.core.auth import get_current_admin
+from app.core.auth import require_admin
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, parse_uuid
 from app.schemas.therapist import TherapistCreate, TherapistResponse, TherapistUpdate
 from app.services.therapist_service import TherapistService
 
-router = APIRouter(prefix="/api/admin", tags=["admin-therapists"], dependencies=[Depends(get_current_admin)])
+router = APIRouter(prefix="/api/admin", tags=["admin-therapists"], dependencies=[Depends(require_admin)])
 
 
 # Danh sách therapist trong shop — lọc theo trạng thái hoạt động

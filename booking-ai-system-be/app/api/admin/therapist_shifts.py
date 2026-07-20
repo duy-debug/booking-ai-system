@@ -2,14 +2,14 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, Query
 from app.core.exceptions import AppError
-from app.core.auth import get_current_admin
+from app.core.auth import require_admin
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, parse_uuid
 from app.schemas.therapist_shift import ShiftCreate, ShiftResponse, ShiftUpdate
 from app.services.therapist_shift_service import TherapistShiftService
 
-router = APIRouter(prefix="/api/admin", tags=["admin-shifts"], dependencies=[Depends(get_current_admin)])
+router = APIRouter(prefix="/api/admin", tags=["admin-shifts"], dependencies=[Depends(require_admin)])
 
 
 # Danh sách ca làm việc trong shop — lọc theo ngày, therapist, trạng thái

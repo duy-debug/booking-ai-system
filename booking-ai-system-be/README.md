@@ -51,12 +51,39 @@ app/
    Chứa toàn bộ business validation (mã duy nhất, overlap ca làm việc, NG list…).
 3. **Repositories (repositories/)** — chỉ truy vấn và `session.add`/`flush`;
    không `commit`/`rollback`.
-4. **Admin vs Public** — endpoint `/api/admin/*` yêu cầu JWT; `/api/*` công khai.
+4. **Admin vs Public** — endpoint `/api/admin/*` yêu cầu Supabase Auth JWT; `/api/*` công khai.
 
-> **RAG đã được tách khỏi backend.** Vector search (Qdrant + Groq) giờ nằm
+### Xác thực (Supabase Auth — asymmetric / JWKS)
+
+- Backend **không tự viết login**. Frontend đăng nhập qua Supabase Auth, gửi access token
+  vào header `Authorization: Bearer <supabase_jwt>`.
+- Backend verify token bằng **public key từ JWKS** (`SUPABASE_JWKS_URL`), thuật toán `ES256`
+  (ECC P-256 — Supabase mặc định). Không dùng shared secret.
+- Quyền admin: email trong token phải nằm trong `ADMIN_EMAILS` (whitelist env),
+  nếu không trả `403 FORBIDDEN`.
+- Public endpoints (`/api/shops`, `/api/bookings`, slots, eligibility…) không cần token.
+
+#### Cách lấy `SUPABASE_JWKS_URL`
+
+JWKS URL có dạng cố định, chỉ thay `<project-ref>` bằng ref của project:
+
+```
+https://<project-ref>.supabase.co/auth/v1/keys
+```
+
+- `<project-ref>` nằm trong URL Supabase của bạn, ví dụ `https://hjwygekteyhdfjnjqvrdl.supabase.co`
+  → project-ref là `hjwygekteyhdfjnjqvrdl`.
+- Cách tìm project-ref: Supabase Dashboard → chọn project → **Project Settings → General**
+  (phần **Reference ID**), hoặc lấy từ đoạn đầu URL project.
+- Có thể mở thử trên trình duyệt để xác nhận: trả về một JSON chứa mảng `keys` (public key).
+- Truy cập Supabase JWT Keys (Settings → API/JWT Keys) để xem thuật toán đang dùng
+  (mặc định **ECC P-256 / ES256**). Nếu project dùng asymmetric, backend verify qua JWKS là đúng.
+
+> **RAG đã được tách hoàn toàn khỏi backend.** Vector search (Qdrant + Groq) giờ nằm
 > trong service độc lập `booking-ai-chatbot/`. Backend không còn thư mục `app/rag/`
-> hay `app/modules/`. Model `KnowledgeChunk` (`kb_chunks`) là phần dư thừa của RAG
-> cũ và sẽ được xoá trong đợt dọn dẹp schema tiếp theo.
+> hay `app/modules/`, và bảng `kb_chunks` (cùng model `KnowledgeChunk`) đã được xoá
+> qua migration `a3f7c9d2e1b0_remove_kb_chunks_table`. Backend chỉ còn tầng dữ liệu
+> giao dịch (PostgreSQL).
 
 ## Công nghệ
 
@@ -65,7 +92,7 @@ app/
 - SQLAlchemy 2.0
 - Alembic
 - Supabase PostgreSQL
-- PyJWT (HS256)
+- PyJWT + JWKS (verify Supabase Auth ES256 token)
 - Pytest
 
 ## Cài đặt

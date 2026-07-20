@@ -1,77 +1,58 @@
-# Auth / JWT — tạo token, verify token, dependency lấy admin hiện tại
+# Auth — verify Supabase Auth JWT (asymmetric, qua JWKS), phân quyền admin theo email whitelist
 
-import hashlib
-import secrets
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from functools import lru_cache
 
 import jwt
-from fastapi import Depends, Header
+from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jwt import PyJWKClient
 
 from app.core.config import settings
 from app.core.exceptions import AppError
 
-# Dùng HTTPBearer để tự động parse Authorization header
-# Swagger UI sẽ hiển thị nút Authorize
+# Tự động parse Authorization: Bearer <token>
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def _hash_password(password: str, salt: str | None = None) -> str:
-    # Băm mật khẩu SHA-256 + salt ngẫu nhiên
-    if salt is None:
-        salt = secrets.token_hex(8)
-    h = hashlib.sha256((salt + password).encode()).hexdigest()
-    return f"{salt}${h}"
+@lru_cache(maxsize=1)
+def _jwk_client() -> PyJWKClient:
+    # JWKS client — cache để không fetch public key mỗi request
+    return PyJWKClient(settings.SUPABASE_JWKS_URL)
 
 
-def _verify_password(password: str, hashed: str) -> bool:
-    # Kiểm tra mật khẩu với hash đã lưu
+def verify_supabase_token(token: str) -> dict:
+    # Giải mã & verify Supabase Auth JWT bằng public key từ JWKS
     try:
-        salt, h = hashed.split("$", 1)
-        return _hash_password(password, salt) == hashed
-    except ValueError:
-        return False
-
-
-# Admin credentials (có thể mở rộng sau bằng DB hoặc env list)
-_ADMIN_STORED_HASH = _hash_password(settings.ADMIN_PASSWORD)
-
-
-def verify_admin_password(password: str) -> bool:
-    # Kiểm tra password admin
-    return _verify_password(password, _ADMIN_STORED_HASH)
-
-
-def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
-    # Tạo JWT token — payload chứa data + exp + iat
-    to_encode = data.copy()
-    now = datetime.now(timezone.utc)
-    expire = now + (expires_delta or timedelta(minutes=settings.JWT_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire, "iat": now, "sub": data.get("sub", "admin")})
-    return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
-
-
-def verify_token(token: str) -> dict[str, Any]:
-    # Giải mã & verify JWT token — raise AppError nếu hết hạn hoặc không hợp lệ
-    try:
-        payload = jwt.decode(
+        signing_key = _jwk_client().get_signing_key_from_jwt(token)
+        return jwt.decode(
             token,
-            settings.JWT_SECRET,
+            signing_key.key,
             algorithms=[settings.JWT_ALGORITHM],
+            options={"verify_aud": False},
         )
-        return payload
     except jwt.ExpiredSignatureError:
         raise AppError(401, code="AUTHENTICATION_REQUIRED", detail="Token het han")
     except jwt.InvalidTokenError:
         raise AppError(401, code="AUTHENTICATION_REQUIRED", detail="Token khong hop le")
 
 
-def get_current_admin(
+def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-) -> dict[str, Any]:
-    # Dependency — lấy admin từ Bearer token. Dùng cho admin routers
+) -> dict:
+    # Dependency — lấy payload user từ Bearer token Supabase
     if credentials is None:
         raise AppError(401, code="AUTHENTICATION_REQUIRED", detail="Thieu Authorization header")
-    payload = verify_token(credentials.credentials)
+    return verify_supabase_token(credentials.credentials)
+
+
+def require_admin(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> dict:
+    # Dependency — chỉ cho phép user có email nằm trong ADMIN_EMAILS
+    if credentials is None:
+        raise AppError(401, code="AUTHENTICATION_REQUIRED", detail="Thieu Authorization header")
+    payload = verify_supabase_token(credentials.credentials)
+    email = payload.get("email")
+    if not email or email not in settings.ADMIN_EMAILS:
+        raise AppError(403, code="FORBIDDEN", detail="Tai khoan khong co quyen admin")
     return payload

@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, Query
 from app.core.exceptions import AppError
-from app.core.auth import get_current_admin
+from app.core.auth import require_admin
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, parse_uuid
 from app.schemas.course import CourseCreate, AdminCourseResponse, CourseUpdate
 from app.services.course_service import CourseService
 
-router = APIRouter(prefix="/api/admin", tags=["admin-courses"], dependencies=[Depends(get_current_admin)])
+router = APIRouter(prefix="/api/admin", tags=["admin-courses"], dependencies=[Depends(require_admin)])
 
 
 # Danh sách course trong shop — lọc theo loại và trạng thái

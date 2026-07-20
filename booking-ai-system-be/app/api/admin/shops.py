@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, Query
 from app.core.exceptions import AppError
-from app.core.auth import get_current_admin
+from app.core.auth import require_admin
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, parse_uuid
 from app.schemas.shop import ShopCreate, AdminShopResponse, ShopUpdate
 from app.services.shop_service import ShopService
 
-router = APIRouter(prefix="/api/admin/shops", tags=["admin-shops"], dependencies=[Depends(get_current_admin)])
+router = APIRouter(prefix="/api/admin/shops", tags=["admin-shops"], dependencies=[Depends(require_admin)])
 
 
 # Danh sách shop — lọc theo trạng thái hoạt động

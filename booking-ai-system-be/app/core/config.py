@@ -29,12 +29,10 @@ class Settings(BaseSettings):
     EMBED_MODEL_NAME: str = "all-MiniLM-L6-v2"
     EMBED_DIM: int = 384
 
-    # Auth / JWT
-    JWT_SECRET: str = "booking-ai-system-jwt-secret-change-in-production-32chars"  # Khóa ký JWT — đổi trong .env
-    JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = 1440  # 24h
-    ADMIN_USERNAME: str = "admin"
-    ADMIN_PASSWORD: str = "admin123"  # Đổi trong .env
+    # Auth — Supabase Auth JWT verification (asymmetric / JWKS)
+    SUPABASE_JWKS_URL: str  # URL JWKS của project Supabase (verify token ECC/RS256)
+    JWT_ALGORITHM: str = "ES256"  # Supabase mặc định ký bằng ECC P-256
+    ADMIN_EMAILS: list[str] = []  # Whitelist email được phép vào /api/admin/*
 
     # CORS — cho phép FE local dev
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]

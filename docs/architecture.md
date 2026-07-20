@@ -94,8 +94,16 @@ app/
   service độc lập `booking-ai-chatbot/` (xem mục Chatbot). Backend không còn thư mục
   `app/rag/` hay `app/modules/`.
 - **POS:** Đã xóa hoàn toàn (RealPOSClient, router, tests).
-- **Legacy schema leftover:** Bảng `kb_chunks` + model `KnowledgeChunk` là phần dư của RAG cũ,
-  chưa được dùng ở bất kỳ code path nào và sẽ được xoá trong đợt dọn dẹp schema tiếp theo.
+- **RAG schema:** Bảng `kb_chunks` + model `KnowledgeChunk` (phần dư RAG cũ) đã xoá
+  qua migration `a3f7c9d2e1b0_remove_kb_chunks_table`.
+
+### Xác thực (Supabase Auth — asymmetric / JWKS)
+
+- Backend **không tự viết login**. Frontend login qua Supabase Auth, gửi access token vào
+  header `Authorization: Bearer <supabase_jwt>`.
+- Backend verify token bằng **public key từ JWKS** (`SUPABASE_JWKS_URL`), thuật toán `ES256`
+  (ECC P-256 — Supabase mặc định). Không dùng shared secret.
+- Quyền admin: email trong token phải nằm trong `ADMIN_EMAILS`, nếu không trả `403`.
 
 ### Biến môi trường
 
@@ -104,11 +112,9 @@ DATABASE_URL=postgresql://<user>:<password>@<host>:5432/postgres
 SUPABASE_URL=https://<project>.supabase.co
 SUPABASE_SERVICE_KEY=<service_role_key>
 SUPABASE_ANON_KEY=<anon_key>
-JWT_SECRET=...
-JWT_ALGORITHM=HS256
-JWT_EXPIRE_MINUTES=1440
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
+SUPABASE_JWKS_URL=https://<project>.supabase.co/auth/v1/keys  # Verify token ECC/RS256
+JWT_ALGORITHM=ES256
+ADMIN_EMAILS=["admin@example.com"] # Whitelist email admin
 CORS_ORIGINS=["http://localhost:3000"]
 ```
 

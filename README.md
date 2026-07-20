@@ -122,7 +122,7 @@ Xem thêm tại [Tài liệu kiến trúc](docs/architecture.md).
 | Booking API | FastAPI, Pydantic, SQLAlchemy 2.0 |
 | Database | Supabase PostgreSQL |
 | Migrations | Alembic |
-| Authentication | JWT, PyJWT, HS256 |
+| Authentication | Supabase Auth JWT (ES256, verify qua JWKS) |
 | AI service | Groq-compatible LLM, sentence-transformers |
 | Vector database | Qdrant |
 | Testing | Pytest |
@@ -293,15 +293,30 @@ Không commit credential thật hoặc file `.env` lên repository.
 
 Create `booking-ai-system-be/.env` from `.env.example`.
 
-Các biến quan trọng:
+Các biến quan trọng (đồng bộ với `booking-ai-system-be/.env.example`):
 
 ```env
+# Database (Supabase PostgreSQL)
+SUPABASE_URL=
+SUPABASE_SERVICE_KEY=
+SUPABASE_ANON_KEY=
 DATABASE_URL=
-JWT_SECRET_KEY=
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=
-FRONTEND_ORIGIN=http://localhost:3000
-BOOKING_API_SERVICE_KEY=
+
+# Groq (tùy chọn)
+GROQ_API_KEY=
+GROQ_MODEL=mixtral-8x7b-32768
+
+# Auth — Supabase Auth JWT verification (asymmetric / JWKS)
+SUPABASE_JWKS_URL=https://<project>.supabase.co/auth/v1/keys
+JWT_ALGORITHM=ES256
+ADMIN_EMAILS=["admin@example.com"]   # Whitelist email được vào /api/admin/*
+
+# CORS
+CORS_ORIGINS=["http://localhost:3000"]
+
+# Test (Supabase test user — chỉ khi chạy pytest)
+SUPABASE_TEST_EMAIL=test-admin@example.com
+SUPABASE_TEST_PASSWORD=test-password
 ```
 
 ### AI Chatbot
@@ -310,19 +325,20 @@ Create `booking-ai-chatbot/.env` from `.env.example`.
 
 ```env
 GROQ_API_KEY=
-GROQ_MODEL=
+GROQ_MODEL=mixtral-8x7b-32768
 
 EMBED_MODEL_NAME=all-MiniLM-L6-v2
 EMBED_DIM=384
 
 QDRANT_HOST=localhost
 QDRANT_PORT=6333
-QDRANT_COLLECTION=booking_knowledge_base
+QDRANT_COLLECTION=kb_chunks
 
 BOOKING_API_URL=http://localhost:8000
 BOOKING_API_SERVICE_KEY=
 
-ADMIN_API_KEY=
+ADMIN_API_KEY=change-me-in-production
+```
 ```
 
 Khi chạy bằng Docker Compose:

@@ -1,9 +1,11 @@
 # Fixtures chung cho integration tests — app client + auth headers + test data
 
+import os
 import uuid
 
 import pytest
 from fastapi.testclient import TestClient
+from supabase import create_client
 
 from app.main import app
 
@@ -19,11 +21,16 @@ def client():
 
 
 @pytest.fixture(scope="session")
-def auth_token(client: TestClient) -> str:
-    """Login admin → trả về JWT token"""
-    r = client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
-    assert r.status_code == 200, f"Login fail: {r.text}"
-    return r.json()["data"]["access_token"]
+def auth_token() -> str:
+    """Đăng nhập Supabase test user thật → trả về access token (Supabase JWT)"""
+    url = os.environ["SUPABASE_URL"]
+    key = os.environ["SUPABASE_ANON_KEY"]
+    email = os.environ["SUPABASE_TEST_EMAIL"]
+    password = os.environ["SUPABASE_TEST_PASSWORD"]
+    sb = create_client(url, key)
+    res = sb.auth.sign_in_with_password({"email": email, "password": password})
+    assert res.session is not None, "Supabase sign-in thất bại — kiểm tra SUPABASE_TEST_EMAIL/PASSWORD"
+    return res.session.access_token
 
 
 @pytest.fixture(scope="session")

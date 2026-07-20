@@ -4,14 +4,14 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, parse_uuid
-from app.core.auth import get_current_admin
+from app.core.auth import require_admin
 from app.core.exceptions import AppError
 from app.repositories.booking_repository import BookingRepository
 from app.repositories.shop_repository import ShopRepository
 from app.repositories.customer_repository import CustomerRepository
 from app.repositories.reservation_repository import ReservationRepository
 
-router = APIRouter(prefix="/api/admin/bookings", tags=["admin-bookings"], dependencies=[Depends(get_current_admin)])
+router = APIRouter(prefix="/api/admin/bookings", tags=["admin-bookings"], dependencies=[Depends(require_admin)])
 
 
 # Danh sách booking (admin) — lọc theo shop, ngày, trạng thái, số điện thoại, mã POS
