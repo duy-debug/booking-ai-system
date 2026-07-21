@@ -1,12 +1,14 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiError } from "@/shared/types/api-error";
 import type { UUID } from "@/shared/types/common";
 import { useCourses } from "@/features/course/use-course-queries";
 import { useTherapists } from "@/features/therapist/use-therapist-queries";
+import type { CourseUiModel } from "@/features/course/course.types";
+import type { TherapistUiModel } from "@/features/therapist/therapist.types";
 import { useCheckEligibility } from "@/features/customer/use-customer-queries";
 import { useCreateBooking, useUpdateBooking } from "./booking-form.mutations";
 import { type EligibilityResult } from "./booking-form.queries";
@@ -24,8 +26,10 @@ import {
   BookingBasicInfoRow,
   BookingCustomerRow,
   BookingCourseMatrix,
+  BookingEditDetails,
   BookingTherapistRow,
 } from "./booking-form-sections";
+import type { AdminBookingDetailRaw } from "../schedule.types";
 import { parseTimeToMinutes } from "../schedule.utils";
 import {
   earliestSelectableForDate,
@@ -46,9 +50,15 @@ const TIME_OPTIONS: { value: string; label: string }[] = (() => {
   return out;
 })();
 
+const EMPTY_COURSES: CourseUiModel[] = [];
+const EMPTY_THERAPISTS: TherapistUiModel[] = [];
+
 export interface AvailabilityState {
   available: boolean;
   message?: string;
+  reasonCode?: string;
+  availableTherapistCount?: number;
+  requiredTherapistCount?: number;
 }
 
 export interface BookingFormHandle {
@@ -73,6 +83,7 @@ interface BookingFormProps {
   onFormError?: (err: string | null) => void;
   onSubmittingChange?: (submitting: boolean) => void;
   onSummaryChange?: (summary: BookingFormSummary) => void;
+  editDetail?: AdminBookingDetailRaw;
 }
 
 export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(function BookingForm({
@@ -84,6 +95,7 @@ export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(funct
   onFormError,
   onSubmittingChange,
   onSummaryChange,
+  editDetail,
 }: BookingFormProps, ref) {
   const isEdit = initial.mode === "edit";
 
@@ -93,7 +105,7 @@ export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(funct
       shopId: initial.shopId,
       bookingDate: initial.bookingDate,
       startTime: initial.startTime,
-      numberOfPeople: 1,
+      numberOfPeople: initial.numberOfPeople ?? 1,
       customerPhone: initial.customerPhone ?? "",
       customerName: initial.customerName ?? "",
       mainCourseId: "",
@@ -104,8 +116,10 @@ export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(funct
     },
   });
 
-  const { data: courses = [] } = useCourses(initial.shopId, { isActive: true });
-  const { data: therapists = [] } = useTherapists(initial.shopId, true);
+  const { data: courseData } = useCourses(initial.shopId, { isActive: true });
+  const { data: therapistData } = useTherapists(initial.shopId, true);
+  const courses = courseData ?? EMPTY_COURSES;
+  const therapists = therapistData ?? EMPTY_THERAPISTS;
 
   const createMut = useCreateBooking();
   const updateMut = useUpdateBooking(isEdit ? (initial.bookingId as UUID) : ("" as UUID));
@@ -166,10 +180,15 @@ export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(funct
       bookingDate,
       startTime,
       numberOfPeople,
-      durationMinutes: selectedCourses.reduce((total, course) => total + course.durationMinutes, 0),
-      totalPrice: selectedCourses.reduce((total, course) => total + course.price, 0),
+      durationMinutes: isEdit
+        ? (initial.durationMinutes ?? 0)
+        : selectedCourses.reduce((total, course) => total + course.durationMinutes, 0),
+      totalPrice: isEdit
+        ? (initial.totalPrice ?? 0)
+        : selectedCourses.reduce((total, course) => total + course.price, 0),
     };
-  }, [addonCourseIds, bookingDate, courses, mainCourseId, numberOfPeople, startTime]);
+  }, [addonCourseIds, bookingDate, courses, initial.durationMinutes, initial.totalPrice, isEdit, mainCourseId, numberOfPeople, startTime]);
+  const lastEmittedSummaryRef = useRef<BookingFormSummary | null>(null);
 
   useImperativeHandle(ref, () => ({
     reset: () => {
@@ -192,7 +211,20 @@ export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(funct
   useEffect(() => { onAvailabilityLoading?.(availabilityLoading); }, [availabilityLoading, onAvailabilityLoading]);
   useEffect(() => { onFormError?.(formError); }, [formError, onFormError]);
   useEffect(() => { onSubmittingChange?.(submitting); }, [onSubmittingChange, submitting]);
-  useEffect(() => { onSummaryChange?.(summary); }, [onSummaryChange, summary]);
+  useEffect(() => {
+    const previous = lastEmittedSummaryRef.current;
+    if (
+      previous?.bookingDate === summary.bookingDate &&
+      previous.startTime === summary.startTime &&
+      previous.numberOfPeople === summary.numberOfPeople &&
+      previous.durationMinutes === summary.durationMinutes &&
+      previous.totalPrice === summary.totalPrice
+    ) {
+      return;
+    }
+    lastEmittedSummaryRef.current = summary;
+    onSummaryChange?.(summary);
+  }, [onSummaryChange, summary]);
 
   const applyApiErrors = (err: unknown) => {
     if (err instanceof ApiError) {
@@ -206,8 +238,19 @@ export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(funct
         setAvailability({ available: false, message });
         setFormError(message);
         setAvailabilityRefreshToken((token) => token + 1);
-      } else if (err.code === "SLOT_CONFLICT" || err.code === "THERAPIST_NOT_AVAILABLE") {
-        setAvailability({ available: false, message: err.detail });
+      } else if (
+        err.code === "SLOT_CONFLICT" ||
+        err.code === "THERAPIST_NOT_AVAILABLE" ||
+        err.code === "INSUFFICIENT_AVAILABLE_THERAPISTS" ||
+        err.code === "OUTSIDE_SHIFT" ||
+        err.code === "OUTSIDE_BUSINESS_HOURS" ||
+        err.code === "GROUP_BOOKING_CANNOT_REQUEST_SPECIFIC_THERAPIST"
+      ) {
+        setAvailability({
+          available: false,
+          reasonCode: err.code,
+          message: err.detail,
+        });
         setFormError(err.detail);
       } else if (err.code === "CUSTOMER_IN_NG_LIST") {
         setFormError("SĐT bị cấm đặt lịch (NG list).");
@@ -262,7 +305,10 @@ export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(funct
           timeOptions={timeOptions}
           bookingCode={isEdit ? initial.bookingId : undefined}
           timeNotice={!selectedTimeValidation.valid ? selectedTimeValidation.message : undefined}
+          numberOfPeopleReadOnly={isEdit}
         />
+
+        {isEdit && editDetail && <BookingEditDetails detail={editDetail} />}
 
         {!isEdit && (
           <>

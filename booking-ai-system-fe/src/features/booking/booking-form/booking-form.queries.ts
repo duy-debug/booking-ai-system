@@ -35,6 +35,16 @@ export interface AvailableSlot {
   end_time: string;
   duration_minutes: number;
   available: boolean;
+  reason_code?:
+    | "OUTSIDE_BUSINESS_HOURS"
+    | "OUTSIDE_SHIFT"
+    | "INSUFFICIENT_AVAILABLE_THERAPISTS"
+    | "SLOT_CONFLICT"
+    | "START_IN_PAST"
+    | "START_TOO_SOON";
+  message?: string;
+  available_therapist_count?: number;
+  required_therapist_count?: number;
 }
 
 export interface AvailableTherapist {
@@ -64,11 +74,19 @@ export async function checkAvailableSlots(params: {
   if (params.addonCourseIds?.length) {
     query.addon_course_ids = params.addonCourseIds.join(",");
   }
-  if (params.therapistRequestType) {
-    query.therapist_request_type = params.therapistRequestType;
+  const effectiveRequestType =
+    params.numberOfPeople > 1 && params.therapistRequestType === "specific"
+      ? "none"
+      : params.therapistRequestType;
+  if (effectiveRequestType) {
+    query.therapist_request_type = effectiveRequestType;
   }
-  if (params.therapistId) query.therapist_id = params.therapistId;
-  if (params.therapistGender) query.therapist_gender = params.therapistGender;
+  if (effectiveRequestType === "specific" && params.therapistId) {
+    query.therapist_id = params.therapistId;
+  }
+  if (effectiveRequestType === "gender" && params.therapistGender) {
+    query.therapist_gender = params.therapistGender;
+  }
 
   return apiClient.get<AvailableSlot[]>(
     `/api/shops/${params.shopId}/available-slots`,

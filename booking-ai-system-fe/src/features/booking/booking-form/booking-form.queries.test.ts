@@ -69,4 +69,27 @@ describe("booking availability queries", () => {
       }),
     ).resolves.toEqual(therapists);
   });
+
+  it("does not send therapist_id for a group availability request", async () => {
+    const get = vi.spyOn(apiClient, "get").mockResolvedValue([]);
+
+    await checkAvailableSlots({
+      shopId: "shop-id",
+      bookingDate: "2026-07-21",
+      numberOfPeople: 2,
+      mainCourseId: "course-id",
+      therapistRequestType: "specific",
+      therapistId: "therapist-a",
+    });
+
+    expect(get).toHaveBeenCalledWith("/api/shops/shop-id/available-slots", {
+      query: {
+        booking_date: "2026-07-21",
+        number_of_people: "2",
+        main_course_id: "course-id",
+        therapist_request_type: "none",
+      },
+      anonymous: true,
+    });
+  });
 });

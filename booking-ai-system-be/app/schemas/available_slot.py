@@ -28,6 +28,10 @@ class AvailableSlotResponse(BaseModel):
     end_time: time
     duration_minutes: int
     available: bool
+    reason_code: str | None = None
+    message: str | None = None
+    available_therapist_count: int = 0
+    required_therapist_count: int = 1
 
 
 # Meta data cho available-slots response

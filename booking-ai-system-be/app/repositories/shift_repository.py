@@ -36,7 +36,9 @@ class ShiftRepository:
         return list(self.session.scalars(stmt).all())
 
     # Shift đang hoạt động theo shop + ngày — kèm thông tin therapist
-    def find_available_with_therapist(self, shop_id: UUID, work_date: date) -> list[TherapistShift]:
+    def find_available_with_therapist(
+        self, shop_id: UUID, work_date: date, *, for_update: bool = False
+    ) -> list[TherapistShift]:
         stmt = (
             select(TherapistShift)
             .where(
@@ -46,6 +48,8 @@ class ShiftRepository:
             )
             .options(joinedload(TherapistShift.therapist))
         )
+        if for_update:
+            stmt = stmt.with_for_update(of=TherapistShift)
         return list(self.session.scalars(stmt).all())
 
     # Shift của therapist theo ngày — chỉ lấy active
@@ -76,6 +80,27 @@ class ShiftRepository:
         if exclude_shift_id is not None:
             stmt = stmt.where(TherapistShift.shift_id != exclude_shift_id)
         stmt = stmt.limit(1)
+        return self.session.scalar(stmt) is not None
+
+    def exists_inactive_overlap(
+        self,
+        therapist_id: UUID,
+        work_date: date,
+        start_time: time,
+        end_time: time,
+    ) -> bool:
+        """Return whether an inactive shift blocks any part of the interval."""
+        stmt = (
+            select(TherapistShift.shift_id)
+            .where(
+                TherapistShift.therapist_id == therapist_id,
+                TherapistShift.work_date == work_date,
+                TherapistShift.start_time < end_time,
+                TherapistShift.end_time > start_time,
+                TherapistShift.is_active == False,
+            )
+            .limit(1)
+        )
         return self.session.scalar(stmt) is not None
 
     # Lưu shift mới — add + flush

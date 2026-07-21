@@ -4,6 +4,7 @@ import { Search, UserCheck, UserPlus } from "lucide-react";
 import { useFormContext, useWatch } from "react-hook-form";
 import type { CourseUiModel } from "@/features/course/course.types";
 import type { TherapistUiModel } from "@/features/therapist/therapist.types";
+import type { AdminBookingDetailRaw } from "@/features/booking/schedule.types";
 import { GENDERS, THERAPIST_REQUEST_TYPES } from "@/shared/types/common";
 import type { BookingFormValues } from "./booking-form.schema";
 import type { EligibilityResult } from "./booking-form.queries";
@@ -51,12 +52,15 @@ export function BookingBasicInfoRow({
   timeOptions,
   bookingCode,
   timeNotice,
+  numberOfPeopleReadOnly = false,
 }: {
   timeOptions: { value: string; label: string; disabled?: boolean }[];
   bookingCode?: string;
   timeNotice?: string;
+  numberOfPeopleReadOnly?: boolean;
 }) {
-  const { register } = useFormContext<BookingFormValues>();
+  const { register, setValue } = useFormContext<BookingFormValues>();
+  const numberOfPeopleField = register("numberOfPeople", { valueAsNumber: true });
 
   return (
     <WorkspaceRow label="Thông tin booking">
@@ -84,8 +88,27 @@ export function BookingBasicInfoRow({
             type="number"
             min={1}
             max={3}
-            className={`${inputClass} w-16`}
-            {...register("numberOfPeople", { valueAsNumber: true })}
+            readOnly={numberOfPeopleReadOnly}
+            aria-readonly={numberOfPeopleReadOnly}
+            className={`${inputClass} w-16 ${numberOfPeopleReadOnly ? "bg-zinc-50 text-zinc-500" : ""}`}
+            {...numberOfPeopleField}
+            onChange={(event) => {
+              void numberOfPeopleField.onChange(event);
+              if (Number(event.target.value) > 1) {
+                setValue("therapistRequestType", "none", {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+                setValue("requestedTherapistId", "", {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+                setValue("requestedGender", undefined, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+              }
+            }}
           />
           <FieldError name="numberOfPeople" />
         </div>
@@ -97,6 +120,90 @@ export function BookingBasicInfoRow({
         </div>
       </div>
     </WorkspaceRow>
+  );
+}
+
+export function BookingEditDetails({
+  detail,
+}: {
+  detail: AdminBookingDetailRaw;
+}) {
+  const customer = detail.customer;
+
+  return (
+    <>
+      <WorkspaceRow label="Khách hàng">
+        <div className="grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <span className={fieldLabelClass}>Tên khách</span>
+            <strong className="text-zinc-800">{customer?.name || "Khách chưa có tên"}</strong>
+          </div>
+          <div>
+            <span className={fieldLabelClass}>Số điện thoại</span>
+            <span className="text-zinc-700">{customer?.phone || "-"}</span>
+          </div>
+          <div>
+            <span className={fieldLabelClass}>Hạng thành viên</span>
+            <span className="text-zinc-700">
+              {customer?.is_member ? customer.member_rank || "Thành viên" : "Khách thường"}
+            </span>
+          </div>
+          <div>
+            <span className={fieldLabelClass}>Số lần ghé</span>
+            <span className="text-zinc-700">{customer?.visit_count ?? 0}</span>
+          </div>
+        </div>
+      </WorkspaceRow>
+
+      <WorkspaceRow label="Phân công" className="border-b">
+        {detail.reservations.length === 0 ? (
+          <p className="py-2 text-xs text-zinc-500">Booking chưa có reservation.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] border-collapse text-left text-xs">
+              <thead>
+                <tr className="border-b border-zinc-200 text-[11px] font-medium text-zinc-500">
+                  <th className="px-2 py-2">Người</th>
+                  <th className="px-2 py-2">Therapist</th>
+                  <th className="px-2 py-2">Course</th>
+                  <th className="px-2 py-2 text-right">Thời lượng</th>
+                  <th className="px-2 py-2 text-right">Giá</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.reservations.map((reservation) => {
+                  const duration = reservation.courses.reduce(
+                    (total, course) => total + course.duration_snapshot,
+                    0,
+                  );
+                  const price = reservation.courses.reduce(
+                    (total, course) => total + Number(course.price_snapshot),
+                    0,
+                  );
+                  return (
+                    <tr key={reservation.reservation_id} className="border-b border-zinc-100 last:border-b-0">
+                      <td className="px-2 py-2 font-semibold text-zinc-800">
+                        {reservation.person_index}
+                      </td>
+                      <td className="px-2 py-2 text-zinc-700">
+                        {reservation.therapist.name || reservation.therapist.therapist_id}
+                      </td>
+                      <td className="px-2 py-2 text-zinc-700">
+                        {reservation.courses.map((course) => course.course_name_snapshot).join(", ") || "-"}
+                      </td>
+                      <td className="px-2 py-2 text-right text-zinc-700">{duration} phút</td>
+                      <td className="px-2 py-2 text-right font-medium text-zinc-800">
+                        {price.toLocaleString("vi-VN")}₫
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </WorkspaceRow>
+    </>
   );
 }
 
@@ -276,6 +383,7 @@ export function BookingTherapistRow({ therapists }: { therapists: TherapistUiMod
   const requestType = useWatch({ name: "therapistRequestType" });
   const requestedTherapistId = useWatch({ name: "requestedTherapistId" });
   const requestedGender = useWatch({ name: "requestedGender" });
+  const numberOfPeople = useWatch({ name: "numberOfPeople" });
 
   const setRequestType = (type: BookingFormValues["therapistRequestType"]) => {
     setValue("therapistRequestType", type, { shouldDirty: true, shouldValidate: true });
@@ -291,14 +399,17 @@ export function BookingTherapistRow({ therapists }: { therapists: TherapistUiMod
           <div className="flex flex-wrap gap-1.5">
             {THERAPIST_REQUEST_TYPES.map((type) => {
               const selected = requestType === type;
+              const disabled = type === "specific" && numberOfPeople > 1;
               const label = type === "none" ? "Không yêu cầu" : type === "gender" ? "Theo giới tính" : "Chỉ định cụ thể";
               return (
                 <button
                   key={type}
                   type="button"
                   aria-pressed={selected}
+                  disabled={disabled}
+                  title={disabled ? "Booking nhóm không thể chỉ định một therapist cụ thể" : undefined}
                   onClick={() => setRequestType(type)}
-                  className={`${chipClass} ${selected ? "border-blue-700 bg-blue-600 text-white" : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"}`}
+                  className={`${chipClass} disabled:cursor-not-allowed disabled:opacity-40 ${selected ? "border-blue-700 bg-blue-600 text-white" : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"}`}
                 >
                   {label}
                 </button>

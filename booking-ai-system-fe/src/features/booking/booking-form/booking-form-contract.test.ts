@@ -57,4 +57,22 @@ describe("booking form backend contract", () => {
       expect(source).not.toContain(`>${label}<`);
     }
   });
+
+  it("removes a specific therapist from group booking payloads", () => {
+    const values: BookingFormValues = {
+      shopId: "shop-id",
+      bookingDate: "2026-07-21",
+      startTime: "14:00",
+      numberOfPeople: 2,
+      customerPhone: "0901234567",
+      customerName: "Nhóm hai người",
+      mainCourseId: "main-60",
+      addonCourseIds: [],
+      therapistRequestType: "specific",
+      requestedTherapistId: "therapist-a",
+      requestedGender: undefined,
+    };
+
+    expect(toCreatePayload(values).therapist_request).toEqual({ type: "none" });
+  });
 });

@@ -28,19 +28,32 @@ export interface AdminBookingListItemRaw {
 // --- Booking detail (admin) — để lấy reservation.therapist_id ---
 export interface AdminBookingDetailRaw {
   booking_id: UUID;
-  shop_id: UUID;
+  pos_booking_code: string | null;
   status: BookingStatus;
+  shop: { shop_id: UUID | null; name: string | null };
   booking_date: ISODate;
   start_time: ISOTime;
   end_time: ISOTime;
-  customer: { name: string | null; phone: string } | null;
+  number_of_people: number;
+  total_duration_minutes: number;
+  customer: {
+    customer_id: UUID | null;
+    name: string | null;
+    phone: string | null;
+    is_member: boolean;
+    member_rank: string | null;
+    visit_count: number;
+  } | null;
   reservations: Array<{
     reservation_id: UUID;
+    person_index: number;
     therapist: { therapist_id: UUID; name: string | null };
-    start_time: ISOTime;
-    end_time: ISOTime;
-    status: string;
-    courses: Array<{ course_name_snapshot: string; course_role: string }>;
+    courses: Array<{
+      course_name_snapshot: string;
+      course_role: string;
+      duration_snapshot: number;
+      price_snapshot: number;
+    }>;
   }>;
 }
 

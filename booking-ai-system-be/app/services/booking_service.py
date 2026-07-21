@@ -17,14 +17,13 @@ from app.repositories import (
     CourseRepository,
     CustomerRepository,
     ReservationRepository,
-    ShiftRepository,
-    TherapistRepository,
 )
 from app.schemas.booking import (
     BookingCreate,
     BookingPatchInput,
 )
 from app.services.booking_time import validate_booking_start
+from app.services.therapist_availability_service import TherapistAvailabilityService
 
 
 def _to_hhmm(value) -> str:
@@ -116,11 +115,30 @@ class BookingService:
         self.course_repo = CourseRepository(session)
         self.customer_repo = CustomerRepository(session)
         self.reservation_repo = ReservationRepository(session)
-        self.shift_repo = ShiftRepository(session)
-        self.therapist_repo = TherapistRepository(session)
+        self.availability_service = TherapistAvailabilityService(session)
 
     # ── Tạo booking mới ──────────────────────────────────────────────
     def create(self, body: BookingCreate, idempotency_key: str) -> dict:
+        try:
+            result = self._create(body, idempotency_key)
+            self.session.commit()
+            return result
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def _create(self, body: BookingCreate, idempotency_key: str) -> dict:
+        if (
+            body.number_of_people > 1
+            and body.therapist_request
+            and body.therapist_request.type == "specific"
+        ):
+            raise AppError(
+                422,
+                code="GROUP_BOOKING_CANNOT_REQUEST_SPECIFIC_THERAPIST",
+                detail="Booking nhóm không thể chỉ định một therapist cụ thể.",
+            )
+
         shop = self.shop_repo.find_by_id(body.shop_id)
         if not shop:
             raise AppError(404, code="SHOP_NOT_FOUND", detail="Không tìm thấy shop")
@@ -211,8 +229,13 @@ class BookingService:
         self.schedule_repo.save(booking)
 
         # Tạo reservation cho mỗi người
-        for i in range(body.number_of_people):
-            tid = therapist_ids[i] if i < len(therapist_ids) else therapist_ids[0]
+        if len(therapist_ids) != len(set(therapist_ids)):
+            raise AppError(
+                422,
+                code="DUPLICATE_THERAPIST_ASSIGNMENT",
+                detail="Mỗi người trong booking nhóm phải có therapist khác nhau.",
+            )
+        for i, tid in enumerate(therapist_ids):
             reservation = Reservation(
                 booking_id=booking.booking_id,
                 person_index=i + 1,
@@ -275,11 +298,16 @@ class BookingService:
         if body.start_time is not None:
             booking.start_time = body.start_time
             # Tính lại end_time từ courses snapshot
-            total = 0
-            for res in booking.reservations:
-                for rc in res.reservation_courses:
-                    total += rc.duration_snapshot
-            booking.end_time = _add_minutes_to_time(body.start_time, total or booking.total_duration_minutes)
+            duration = booking.total_duration_minutes
+            if not duration and booking.reservations:
+                duration = sum(
+                    rc.duration_snapshot
+                    for rc in booking.reservations[0].reservation_courses
+                )
+            booking.end_time = _add_minutes_to_time(body.start_time, duration)
+            for reservation in booking.reservations:
+                reservation.start_time = body.start_time
+                reservation.end_time = booking.end_time
 
         self.session.flush()
         return _booking_to_detail(booking)
@@ -294,34 +322,51 @@ class BookingService:
         number_of_people: int,
         therapist_request=None,
     ) -> list[UUID]:
-        if therapist_request and therapist_request.type == "specific" and therapist_request.therapist_id:
-            return [therapist_request.therapist_id] * number_of_people
-
-        shifts = self.shift_repo.find_available_with_therapist(shop_id, booking_date)
-        candidates = []
-        for shift in shifts:
-            t = shift.therapist
-            if not t.is_active:
-                continue
-            if shift.start_time <= start_time and shift.end_time >= end_time:
-                overlap = self.reservation_repo.exists_overlap(
-                    t.therapist_id, booking_date, start_time, end_time
+        request_type = therapist_request.type if therapist_request else "none"
+        if number_of_people > 1 and request_type == "specific":
+            raise AppError(
+                422,
+                code="GROUP_BOOKING_CANNOT_REQUEST_SPECIFIC_THERAPIST",
+                detail="Booking nhóm không thể chỉ định một therapist cụ thể.",
+            )
+        result = self.availability_service.evaluate(
+            shop_id=shop_id,
+            booking_date=booking_date,
+            start_time=start_time,
+            end_time=end_time,
+            request_type=request_type,
+            requested_therapist_id=(
+                therapist_request.therapist_id if therapist_request else None
+            ),
+            requested_gender=(therapist_request.gender if therapist_request else None),
+            lock_shifts=True,
+        )
+        if result.available_therapist_count < number_of_people:
+            if number_of_people > 1:
+                raise AppError(
+                    422,
+                    code="INSUFFICIENT_AVAILABLE_THERAPISTS",
+                    detail=(
+                        "Không đủ therapist rảnh đồng thời cho nhóm "
+                        f"{number_of_people} người."
+                    ),
                 )
-                if not overlap:
-                    if therapist_request and therapist_request.type == "gender" and therapist_request.gender:
-                        if t.gender == therapist_request.gender:
-                            candidates.append(t.therapist_id)
-                    else:
-                        candidates.append(t.therapist_id)
-
-        if not candidates:
-            raise AppError(422, code="THERAPIST_NOT_AVAILABLE",
-                           detail="Không có therapist khả dụng trong khung giờ")
-
-        if number_of_people <= len(candidates):
-            return candidates[:number_of_people]
-        # Nhóm > số therapist — lấy therapist đầu cho tất cả (phòng chờ)
-        return [candidates[0]] * number_of_people
+            raise AppError(
+                422,
+                code="THERAPIST_NOT_AVAILABLE",
+                detail="Không có therapist khả dụng trong khung giờ.",
+            )
+        therapist_ids = [
+            therapist.therapist_id
+            for therapist in result.available_therapists[:number_of_people]
+        ]
+        if len(therapist_ids) != len(set(therapist_ids)):
+            raise AppError(
+                422,
+                code="DUPLICATE_THERAPIST_ASSIGNMENT",
+                detail="Mỗi người trong booking nhóm phải có therapist khác nhau.",
+            )
+        return therapist_ids
 
     # Lấy toàn bộ dữ liệu timeline trong một ngày nghiệp vụ, gom 1 request.
     def get_schedule(

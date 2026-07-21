@@ -101,6 +101,9 @@ export interface BookingFormInitial {
   bookingId?: UUID; // edit mode
   customerPhone?: string;
   customerName?: string;
+  numberOfPeople?: number;
+  durationMinutes?: number;
+  totalPrice?: number;
   timezone?: string;
   minimumBookingAdvanceMinutes?: number;
 }
@@ -131,13 +134,17 @@ export function toCreatePayload(values: BookingFormValues): CreateBookingPayload
     })),
   ];
 
+  const effectiveRequestType =
+    values.numberOfPeople > 1 && values.therapistRequestType === "specific"
+      ? "none"
+      : values.therapistRequestType;
   const therapistRequest: CreateBookingPayload["therapist_request"] = {
-    type: values.therapistRequestType,
+    type: effectiveRequestType,
   };
-  if (values.therapistRequestType === "specific" && values.requestedTherapistId) {
+  if (effectiveRequestType === "specific" && values.requestedTherapistId) {
     therapistRequest.therapist_id = values.requestedTherapistId as UUID;
   }
-  if (values.therapistRequestType === "gender" && values.requestedGender) {
+  if (effectiveRequestType === "gender" && values.requestedGender) {
     therapistRequest.gender = values.requestedGender;
   }
 

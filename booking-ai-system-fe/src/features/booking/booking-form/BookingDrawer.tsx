@@ -174,15 +174,24 @@ function BookingModalInner({
       };
     }
     const d = detailQuery.data;
+    const firstReservation = d?.reservations[0];
     return {
       mode: "edit",
       bookingId: state.booking.bookingId,
       shopId: state.shopId,
-      bookingDate: state.booking.bookingDate,
-      startTime: absoluteMinutesToHHMM(state.booking.startMinutes),
-      therapistId: state.booking.therapistId as UUID | undefined,
-      customerPhone: d?.customerId ? undefined : state.booking.customerPhone,
-      customerName: state.booking.customerName ?? undefined,
+      bookingDate: d?.booking_date ?? state.booking.bookingDate,
+      startTime: d?.start_time?.slice(0, 5) ?? absoluteMinutesToHHMM(state.booking.startMinutes),
+      therapistId:
+        firstReservation?.therapist.therapist_id ??
+        (state.booking.therapistId as UUID | undefined),
+      customerPhone: d?.customer?.phone ?? state.booking.customerPhone,
+      customerName: d?.customer?.name ?? state.booking.customerName ?? undefined,
+      numberOfPeople: d?.number_of_people ?? 1,
+      durationMinutes: d?.total_duration_minutes ?? 0,
+      totalPrice: firstReservation?.courses.reduce(
+        (total, course) => total + Number(course.price_snapshot),
+        0,
+      ) ?? 0,
     };
   }, [state, detailQuery.data]);
 
@@ -262,17 +271,21 @@ function BookingModalInner({
           {isEdit && detailQuery.isError && (
             <p className="text-xs text-amber-600 mb-3">Không tải được chi tiết. Vẫn có thể sửa giờ.</p>
           )}
-          <BookingForm
-            ref={formRef}
-            initial={initial}
-            onDirtyChange={setDirty}
-            onSaved={handleSaved}
-            onAvailability={setAvailability}
-            onAvailabilityLoading={setAvailabilityLoading}
-            onFormError={setFormError}
-            onSubmittingChange={setFormSubmitting}
-            onSummaryChange={setSummary}
-          />
+          {(!isEdit || !detailQuery.isLoading) && (
+            <BookingForm
+              key={isEdit ? `${bookingId}:${detailQuery.data ? "detail" : "fallback"}` : "create"}
+              ref={formRef}
+              initial={initial}
+              editDetail={isEdit ? detailQuery.data : undefined}
+              onDirtyChange={setDirty}
+              onSaved={handleSaved}
+              onAvailability={setAvailability}
+              onAvailabilityLoading={setAvailabilityLoading}
+              onFormError={setFormError}
+              onSubmittingChange={setFormSubmitting}
+              onSummaryChange={setSummary}
+            />
+          )}
         </div>
 
         {/* ═══ Footer ═══ */}

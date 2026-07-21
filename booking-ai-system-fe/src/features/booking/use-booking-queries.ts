@@ -4,13 +4,11 @@ import { useApiListQuery, useApiMutation, useApiQuery, apiClient } from "@/share
 import type { BookingStatus, UUID } from "@/shared/types/common";
 import {
   bookingApi,
-  toBookingDetailUi,
   toBookingListUi,
   type AdminBookingListItemRaw,
-  type BookingDetailRaw,
-  type BookingDetailUi,
   type BookingListUi,
 } from "./booking.types";
+import type { AdminBookingDetailRaw } from "./schedule.types";
 
 export interface BookingListQuery {
   shopId?: UUID;
@@ -43,12 +41,11 @@ export function useAdminBookingDetail(
   id: UUID,
   options?: { enabled?: boolean },
 ) {
-  return useApiQuery<BookingDetailRaw, BookingDetailUi>(
+  return useApiQuery<AdminBookingDetailRaw>(
     ["admin-booking", id],
     bookingApi.detail(id),
     {
       enabled: options?.enabled,
-      select: (d) => toBookingDetailUi(d),
     },
   );
 }

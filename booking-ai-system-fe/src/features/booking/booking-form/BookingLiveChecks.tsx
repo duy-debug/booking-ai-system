@@ -12,6 +12,7 @@ import type { AvailabilityState } from "./BookingForm";
 import type { BookingFormValues } from "./booking-form.schema";
 import { parseTimeToMinutes } from "../schedule.utils";
 import { validateBookingStart } from "../booking-time";
+import { ApiError } from "@/shared/types/api-error";
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -85,7 +86,7 @@ export function BookingLiveChecks({
     return () => clearTimeout(t);
   }, [phone, shopId, onEligibility]);
 
-  // Debounce 400ms availability check (backend source of truth), abort stale.
+  // Debounce availability checks while the user is changing booking inputs.
   useEffect(() => {
     if (
       !mainCourseId ||
@@ -111,6 +112,10 @@ export function BookingLiveChecks({
     }
     if (submitting) return;
     const reqId = ++availabilityReqId.current;
+    const effectiveRequestType =
+      numberOfPeople > 1 && therapistRequestType === "specific"
+        ? "none"
+        : therapistRequestType;
     const t = setTimeout(async () => {
       onAvailabilityLoading(true);
       try {
@@ -120,26 +125,51 @@ export function BookingLiveChecks({
           numberOfPeople,
           mainCourseId: mainCourseId as UUID,
           addonCourseIds: (addonCourseIds as UUID[]) ?? [],
-          therapistRequestType,
-          therapistId: requestedTherapistId ? (requestedTherapistId as UUID) : undefined,
-          therapistGender: requestedGender,
+          therapistRequestType: effectiveRequestType,
+          therapistId:
+            effectiveRequestType === "specific" && requestedTherapistId
+              ? (requestedTherapistId as UUID)
+              : undefined,
+          therapistGender:
+            effectiveRequestType === "gender" ? requestedGender : undefined,
         });
         if (reqId !== availabilityReqId.current) return;
         const match = slots.find((s) => s.start_time.startsWith(startTime));
         if (!match) {
-          onAvailability({ available: false, message: "Ngoài khung giờ" });
+          onAvailability({
+            available: false,
+            reasonCode: "OUTSIDE_SHIFT",
+            message: "Không có therapist có ca bao phủ toàn bộ khung giờ.",
+          });
         } else if (!match.available) {
-          onAvailability({ available: false, message: "Đã có booking khác" });
+          onAvailability({
+            available: false,
+            reasonCode: match.reason_code,
+            message: match.message ?? "Slot không khả dụng.",
+            availableTherapistCount: match.available_therapist_count,
+            requiredTherapistCount: match.required_therapist_count,
+          });
         } else {
-          onAvailability({ available: true });
+          onAvailability({
+            available: true,
+            availableTherapistCount: match.available_therapist_count,
+            requiredTherapistCount: match.required_therapist_count,
+          });
         }
-      } catch {
+      } catch (error) {
         if (reqId !== availabilityReqId.current) return;
-        onAvailability({ available: false, message: "Lỗi kiểm tra lịch" });
+        onAvailability({
+          available: false,
+          reasonCode: error instanceof ApiError ? error.code : undefined,
+          message:
+            error instanceof ApiError
+              ? error.detail
+              : "Lỗi kiểm tra lịch",
+        });
       } finally {
         if (reqId === availabilityReqId.current) onAvailabilityLoading(false);
       }
-    }, 400);
+    }, 200);
     return () => clearTimeout(t);
   }, [
     mainCourseId,
