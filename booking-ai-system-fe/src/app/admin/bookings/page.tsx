@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { addDays, format, parseISO } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { ScheduleToolbar } from "@/features/booking/ScheduleToolbar";
@@ -22,36 +22,38 @@ export default function AdminBookingsPage() {
 
   const queryClient = useQueryClient();
   const shopsQuery = useShops(true);
-  const shops = (shopsQuery.data ?? []).map((s) => ({ id: s.id, name: s.name }));
+  const shops = useMemo(
+    () => (shopsQuery.data ?? []).map((s) => ({ id: s.id, name: s.name })),
+    [shopsQuery.data],
+  );
 
   const activeShopId = shopId ?? shops[0]?.id ?? null;
 
   const scheduleQuery = useScheduleData(activeShopId, date);
 
-  const shiftDay = (delta: number) => {
+  const shiftDay = useCallback((delta: number) => {
     const next = addDays(parseISO(date), delta);
     setDate(format(next, "yyyy-MM-dd"));
-  };
+  }, [date]);
 
-  const handleCreate = (sel: Selection) => {
+  const handleCreate = useCallback((sel: Selection) => {
     if (!activeShopId) return;
     setDrawer({ kind: "create", selection: sel, shopId: activeShopId, bookingDate: date });
-  };
+  }, [activeShopId, date]);
 
-  const handleSelectBooking = (b: BookingViewModel) => {
+  const handleSelectBooking = useCallback((b: BookingViewModel) => {
     if (!activeShopId) return;
     setDrawer({ kind: "edit", booking: b, shopId: activeShopId, bookingDate: date });
-  };
+  }, [activeShopId, date]);
 
-  const handleSaved = (bookingId: UUID) => {
+  const handleSaved = useCallback((bookingId: UUID) => {
     queryClient.invalidateQueries({ queryKey: ["schedule", activeShopId, date] });
     queryClient.invalidateQueries({ queryKey: ["admin-booking", bookingId] });
     setDrawer(null);
-  };
+  }, [queryClient, activeShopId, date]);
 
   return (
-    <div>
-      <h1 className="mb-4 text-2xl font-bold text-zinc-900">Quản lý Booking</h1>
+    <div className="flex flex-col h-full">
       <ScheduleToolbar
         date={date}
         onDateChange={setDate}
@@ -62,16 +64,20 @@ export default function AdminBookingsPage() {
         onStepChange={setStep}
         onPrevDay={() => shiftDay(-1)}
         onNextDay={() => shiftDay(1)}
+        scheduleData={scheduleQuery.data ?? null}
+        shopsLoading={shopsQuery.isLoading}
       />
-      <ScheduleBoard
-        schedule={scheduleQuery.data}
-        isLoading={scheduleQuery.isLoading}
-        isError={scheduleQuery.isError}
-        error={scheduleQuery.error ?? undefined}
-        step={step}
-        onSelectBooking={handleSelectBooking}
-        onCreateBooking={handleCreate}
-      />
+      <div className="flex-1 min-h-0 px-2 pb-2">
+        <ScheduleBoard
+          schedule={scheduleQuery.data}
+          isLoading={scheduleQuery.isLoading}
+          isError={scheduleQuery.isError}
+          error={scheduleQuery.error ?? undefined}
+          step={step}
+          onSelectBooking={handleSelectBooking}
+          onCreateBooking={handleCreate}
+        />
+      </div>
       <BookingDrawer state={drawer} onClose={() => setDrawer(null)} onSaved={handleSaved} />
     </div>
   );

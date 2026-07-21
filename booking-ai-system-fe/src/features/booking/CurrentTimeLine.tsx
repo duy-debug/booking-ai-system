@@ -2,16 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { nowAbsoluteMinutes, timeToX, type TimeRange } from "./schedule.utils";
-import { PX_PER_MINUTE, RESOURCE_COLUMN_WIDTH, HEADER_HEIGHT } from "./schedule.theme";
+import { RESOURCE_COLUMN_WIDTH } from "./schedule.theme";
 
 interface CurrentTimeLineProps {
   range: TimeRange;
   date: string;
   timezone: string;
+  pxPerMinute: number;
 }
 
-// Đường dọc biểu diễn thời gian hiện tại. Tự cập nhật mỗi phút.
-export function CurrentTimeLine({ range, date, timezone }: CurrentTimeLineProps) {
+// Only rendered when the selected date is today (checked in parent).
+// Updates position every 60s using the shop's timezone.
+export function CurrentTimeLine({ range, date, timezone, pxPerMinute }: CurrentTimeLineProps) {
   const [x, setX] = useState<number | null>(null);
 
   useEffect(() => {
@@ -22,13 +24,16 @@ export function CurrentTimeLine({ range, date, timezone }: CurrentTimeLineProps)
   }, [range, date, timezone]);
 
   if (x === null) return null;
+
+  const left = RESOURCE_COLUMN_WIDTH + timeToX(x, range, pxPerMinute);
+
   return (
     <div
       className="pointer-events-none absolute top-0 z-20"
-      style={{ left: RESOURCE_COLUMN_WIDTH + timeToX(x, range, PX_PER_MINUTE), height: `calc(100% - 0px)` }}
+      style={{ left }}
     >
-      <div className="h-full w-px bg-red-500" />
-      <div className="absolute -left-1 -top-0 h-2 w-2 rounded-full bg-red-500" style={{ top: HEADER_HEIGHT - 8 }} />
+      <div className="h-full w-0.5 bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.5)]" />
+      <div className="absolute -left-1 top-0 w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.5)]" />
     </div>
   );
 }

@@ -1,21 +1,29 @@
 import { formatAbsoluteHour, type TimeRange } from "./schedule.utils";
-import { PX_PER_MINUTE, RESOURCE_COLUMN_WIDTH, HEADER_HEIGHT, type TimeStep } from "./schedule.theme";
+import { RESOURCE_COLUMN_WIDTH, HEADER_HEIGHT } from "./schedule.theme";
 
 interface ScheduleHeaderProps {
   range: TimeRange;
-  step: TimeStep;
+  pxPerMinute: number;
 }
 
-// Header thời gian — sticky top. Phải lùi sang phải bằng độ rộng cột resource.
-export function ScheduleHeader({ range, step }: ScheduleHeaderProps) {
-  const ticks: number[] = [];
-  for (let t = range.start; t <= range.end; t += step) ticks.push(t);
+export function ScheduleHeader({ range, pxPerMinute }: ScheduleHeaderProps) {
+  const totalWidth = (range.end - range.start) * pxPerMinute;
 
-  const totalWidth = (range.end - range.start) * PX_PER_MINUTE;
+  // Generate hour ticks (every 60 min)
+  const hourTicks: { min: number; label: string }[] = [];
+  for (let t = range.start; t <= range.end; t += 60) {
+    hourTicks.push({ min: t, label: formatAbsoluteHour(t, { padDay: true }) });
+  }
+
+  // Generate half-hour ticks (every 60 min, offset 30)
+  const halfHourTicks: number[] = [];
+  for (let t = range.start + 30; t <= range.end; t += 60) {
+    halfHourTicks.push(t);
+  }
 
   return (
     <div
-      className="sticky top-0 z-30 flex bg-white"
+      className="sticky top-0 z-30 flex bg-white border-b border-zinc-200"
       style={{ height: HEADER_HEIGHT }}
     >
       <div
@@ -23,13 +31,24 @@ export function ScheduleHeader({ range, step }: ScheduleHeaderProps) {
         style={{ width: RESOURCE_COLUMN_WIDTH }}
       />
       <div className="relative" style={{ width: totalWidth }}>
-        {ticks.map((t) => (
+        {/* Half-hour minor ticks */}
+        {halfHourTicks.map((t) => (
           <div
-            key={t}
-            className="absolute top-0 flex h-full items-center border-l border-zinc-200 pl-1 text-xs text-zinc-500"
-            style={{ left: (t - range.start) * PX_PER_MINUTE }}
+            key={`half-${t}`}
+            className="absolute top-0 border-l border-zinc-100"
+            style={{ left: (t - range.start) * pxPerMinute, height: HEADER_HEIGHT }}
+          />
+        ))}
+        {/* Hour major ticks with labels */}
+        {hourTicks.map((t) => (
+          <div
+            key={t.min}
+            className="absolute top-0 flex flex-col h-full border-l border-zinc-300"
+            style={{ left: (t.min - range.start) * pxPerMinute }}
           >
-            {formatAbsoluteHour(t, { padDay: true })}
+            <span className="px-1 text-[11px] leading-tight text-zinc-500 pt-0.5">
+              {t.label}
+            </span>
           </div>
         ))}
       </div>

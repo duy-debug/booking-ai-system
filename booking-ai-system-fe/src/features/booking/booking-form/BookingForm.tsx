@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@/shared/components/ui/button";
 import { ApiError } from "@/shared/types/api-error";
 import type { UUID } from "@/shared/types/common";
 import { useCourses } from "@/features/course/use-course-queries";
 import { useTherapists } from "@/features/therapist/use-therapist-queries";
-import { useShops } from "@/features/shop/use-shop-queries";
 import { useCheckEligibility } from "@/features/customer/use-customer-queries";
 import { useCreateBooking, useUpdateBooking } from "./booking-form.mutations";
 import { type EligibilityResult } from "./booking-form.queries";
@@ -22,16 +20,11 @@ import {
 } from "./booking-form.schema";
 import { BUSINESS_HOURS } from "@/shared/config/shop";
 import {
-  BookingTimeSection,
-  CustomerSection,
-  CourseSection,
-  OptionSection,
-  TherapistSection,
-  BodyConditionSection,
-  BookingSourceSection,
-  PreferenceSection,
-  NotesSection,
-  BookingSummary,
+  BookingInfoRow,
+  CustomerArea,
+  CourseMatrix,
+  TherapistRow,
+  BookingSummaryBar,
 } from "./booking-form-sections";
 
 const TIME_OPTIONS: { value: string; label: string }[] = (() => {
@@ -53,17 +46,27 @@ export interface AvailabilityState {
   message?: string;
 }
 
-export function BookingForm({
-  initial,
-  onSaved,
-  onCancelBooking,
-  onDirtyChange,
-}: {
+export interface BookingFormHandle {
+  reset: () => void;
+}
+
+interface BookingFormProps {
   initial: BookingFormInitial;
   onSaved: (bookingId: UUID) => void;
-  onCancelBooking: () => void;
   onDirtyChange?: (dirty: boolean) => void;
-}) {
+  onAvailability?: (a: AvailabilityState | null) => void;
+  onAvailabilityLoading?: (loading: boolean) => void;
+  onFormError?: (err: string | null) => void;
+}
+
+export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(function BookingForm({
+  initial,
+  onSaved,
+  onDirtyChange,
+  onAvailability,
+  onAvailabilityLoading,
+  onFormError,
+}: BookingFormProps, ref) {
   const isEdit = initial.mode === "edit";
 
   const form = useForm<BookingFormValues>({
@@ -83,10 +86,7 @@ export function BookingForm({
     },
   });
 
-  const { data: shops = [] } = useShops(true);
-  const { data: courses = [] } = useCourses(initial.shopId, {
-    isActive: true,
-  });
+  const { data: courses = [] } = useCourses(initial.shopId, { isActive: true });
   const { data: therapists = [] } = useTherapists(initial.shopId, true);
 
   const createMut = useCreateBooking();
@@ -94,20 +94,30 @@ export function BookingForm({
   const eligibilityMut = useCheckEligibility();
 
   const [eligibility, setEligibility] = useState<EligibilityResult | null>(null);
-  const [availability, setAvailability] = useState<AvailabilityState | null>(
-    null,
-  );
+  const [availability, setAvailability] = useState<AvailabilityState | null>(null);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Báo drawer trạng thái thay đổi chưa lưu (phục vụ unsaved-change warning)
+  useImperativeHandle(ref, () => ({
+    reset: () => {
+      form.reset();
+      setEligibility(null);
+      setAvailability(null);
+      setAvailabilityLoading(false);
+      setFormError(null);
+    },
+  }), [form]);
+
   const isDirty = form.formState.isDirty;
   useEffect(() => {
     onDirtyChange?.(isDirty);
   }, [isDirty, onDirtyChange]);
 
-  const shopOptions = shops.map((s) => ({ value: s.id, label: s.name }));
+  // Propagate availability/formError to parent (BookingDrawer footer)
+  useEffect(() => { onAvailability?.(availability); }, [availability, onAvailability]);
+  useEffect(() => { onAvailabilityLoading?.(availabilityLoading); }, [availabilityLoading, onAvailabilityLoading]);
+  useEffect(() => { onFormError?.(formError); }, [formError, onFormError]);
 
   const applyApiErrors = (err: unknown) => {
     if (err instanceof ApiError) {
@@ -129,17 +139,17 @@ export function BookingForm({
   };
 
   const onSubmit = form.handleSubmit(async (vals) => {
-    // Chặn double submit (yêu cầu: không gửi request trùng khi double click).
-    // `submitting` state + nút disabled đủ ngăn; không dùng ref (tránh lint refs).
     if (submitting) return;
     setSubmitting(true);
     setFormError(null);
     try {
       if (isEdit && initial.bookingId) {
         await updateMut.mutateAsync(toUpdatePayload(vals));
+        form.reset(vals);
         onSaved(initial.bookingId);
       } else {
         const created = await createMut.mutateAsync(toCreatePayload(vals));
+        form.reset(vals);
         onSaved(created.booking_id);
       }
     } catch (err) {
@@ -149,11 +159,9 @@ export function BookingForm({
     }
   });
 
-  const disabled = submitting;
-
   return (
     <FormProvider {...form}>
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form id="booking-form" onSubmit={onSubmit} className="space-y-3">
         <BookingLiveChecks
           form={form}
           shopId={initial.shopId}
@@ -162,14 +170,21 @@ export function BookingForm({
           onAvailability={setAvailability}
           onAvailabilityLoading={setAvailabilityLoading}
         />
+
         {formError && (
-          <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+          <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
             {formError}
           </div>
         )}
 
-        <BookingTimeSection shops={shopOptions} timeOptions={TIME_OPTIONS} />
-        <CustomerSection
+        {/* Hàng 1: Ngày, giờ, số người */}
+        <BookingInfoRow
+          timeOptions={TIME_OPTIONS}
+          bookingCode={isEdit ? initial.bookingId : undefined}
+        />
+
+        {/* Hàng 2: Khách hàng */}
+        <CustomerArea
           eligibility={eligibility}
           eligibilityLoading={eligibilityMut.isPending}
           onCheck={() => {
@@ -181,45 +196,20 @@ export function BookingForm({
                 .catch(() => setEligibility(null));
           }}
         />
-        <CourseSection courses={courses} />
-        <OptionSection />
-        <TherapistSection therapists={therapists} />
-        <BodyConditionSection />
-        <BookingSourceSection />
-        <PreferenceSection />
-        <NotesSection />
-        <BookingSummary
+
+        {/* Hàng 3: Course matrix */}
+        <CourseMatrix courses={courses} />
+
+        {/* Hàng 4: Therapist */}
+        <TherapistRow therapists={therapists} />
+
+        {/* Summary bar hiển thị trong form để footer gọi */}
+        <BookingSummaryBar
           courses={courses}
           availability={availability}
           availabilityLoading={availabilityLoading}
         />
-
-        <div className="sticky bottom-0 flex gap-2 border-t border-zinc-200 bg-white py-3">
-          {!isEdit && (
-            <Button type="submit" disabled={disabled}>
-              Tạo booking
-            </Button>
-          )}
-          {isEdit && (
-            <Button type="submit" disabled={disabled}>
-              Cập nhật giờ
-            </Button>
-          )}
-          {isEdit && (
-            <Button
-              type="button"
-              variant="danger"
-              disabled={disabled}
-              onClick={onCancelBooking}
-            >
-              Huỷ booking
-            </Button>
-          )}
-          <Button type="button" variant="ghost" disabled={disabled} onClick={() => form.reset()}>
-            Đặt lại
-          </Button>
-        </div>
       </form>
     </FormProvider>
   );
-}
+});

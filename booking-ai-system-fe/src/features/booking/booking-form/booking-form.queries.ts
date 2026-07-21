@@ -70,11 +70,10 @@ export async function checkAvailableSlots(params: {
   if (params.therapistId) query.therapist_id = params.therapistId;
   if (params.therapistGender) query.therapist_gender = params.therapistGender;
 
-  const res = await apiClient.get<{ data: AvailableSlot[] }>(
+  return apiClient.get<AvailableSlot[]>(
     `/api/shops/${params.shopId}/available-slots`,
     { query, anonymous: true },
   );
-  return res.data;
 }
 
 // Kiểm tra therapist khả dụng trong khung giờ (source of truth cho conflict).
@@ -92,9 +91,8 @@ export async function checkAvailableTherapists(params: {
   };
   if (params.gender) query.gender = params.gender;
 
-  const res = await apiClient.get<{ data: AvailableTherapist[] }>(
+  return apiClient.get<AvailableTherapist[]>(
     `/api/shops/${params.shopId}/available-therapists`,
     { query, anonymous: true },
   );
-  return res.data;
 }

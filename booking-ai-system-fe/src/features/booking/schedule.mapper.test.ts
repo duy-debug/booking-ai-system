@@ -1,10 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { toScheduleViewModel } from "./schedule.mapper";
-import { buildTimelineRange } from "./schedule.utils";
-import { BUSINESS_HOURS } from "@/shared/config/shop";
+import { FULL_DAY_RANGE } from "./schedule.utils";
 import type { ScheduleResponseRaw } from "./schedule.api";
 
-const range = buildTimelineRange(BUSINESS_HOURS.open, BUSINESS_HOURS.close); // 09:00 - 22:00
+const range = FULL_DAY_RANGE; // 00:00 - 24:00
 
 const raw: ScheduleResponseRaw = {
   shop: {
@@ -63,11 +62,12 @@ const raw: ScheduleResponseRaw = {
 };
 
 describe("toScheduleViewModel", () => {
-  it("map shift thành absolute minutes", () => {
+  it("map shift thành absolute minutes trên full-day range", () => {
     const vm = toScheduleViewModel(raw, range);
     expect(vm.resources).toHaveLength(1);
     expect(vm.resources[0].therapistId).toBe("t1");
-    expect(vm.resources[0].shifts[0].startMinutes).toBe(540); // 09:00
+    // 09:00 trên full-day range = 540 (không cộng thêm)
+    expect(vm.resources[0].shifts[0].startMinutes).toBe(540);
     expect(vm.resources[0].shifts[0].endMinutes).toBe(1020); // 17:00
   });
 
@@ -84,7 +84,7 @@ describe("toScheduleViewModel", () => {
     expect(b.posCode).toBe("POS1");
   });
 
-  it("xử lý booking qua nửa đêm: 23:00 -> 01:30 thành 1410 -> 1530", () => {
+  it("xử lý booking qua nửa đêm: 23:00 -> 01:30 thành 1380 -> 1530", () => {
     const overnight: ScheduleResponseRaw = {
       ...raw,
       bookings: [
@@ -106,10 +106,15 @@ describe("toScheduleViewModel", () => {
         },
       ],
     };
-    const overnightRange = buildTimelineRange("09:00", "05:00");
-    const vm = toScheduleViewModel(overnight, overnightRange);
+    const vm = toScheduleViewModel(overnight, range);
     expect(vm.bookings[0].startMinutes).toBe(1380); // 23:00
-    expect(vm.bookings[0].endMinutes).toBe(1530); // 01:30 hôm sau
+    expect(vm.bookings[0].endMinutes).toBe(1530); // 01:30 + 1440
+  });
+
+  it("timelineStart = 0, timelineEnd = 1440 (full day)", () => {
+    const vm = toScheduleViewModel(raw, range);
+    expect(vm.timelineStartMinutes).toBe(0);
+    expect(vm.timelineEndMinutes).toBe(1440);
   });
 
   it("status token cho cancelled", () => {

@@ -9,6 +9,7 @@ import {
   formatAbsoluteHour,
   snapMinutes,
   buildTimelineRange,
+  FULL_DAY_RANGE,
 } from "./schedule.utils";
 import type { TimeRange } from "./schedule.utils";
 
@@ -25,6 +26,18 @@ describe("parseTimeToMinutes", () => {
   });
 });
 
+describe("FULL_DAY_RANGE", () => {
+  it("start = 0 (00:00)", () => {
+    expect(FULL_DAY_RANGE.start).toBe(0);
+  });
+  it("end = 1440 (24:00)", () => {
+    expect(FULL_DAY_RANGE.end).toBe(1440);
+  });
+  it("totalMinutes = 1440", () => {
+    expect(FULL_DAY_RANGE.end - FULL_DAY_RANGE.start).toBe(1440);
+  });
+});
+
 describe("toAbsoluteMinutes (xử lý qua nửa đêm)", () => {
   it("giữ nguyên khi trong khung cùng ngày", () => {
     expect(toAbsoluteMinutes("09:00", RANGE_SAME_DAY.start)).toBe(540);
@@ -37,6 +50,10 @@ describe("toAbsoluteMinutes (xử lý qua nửa đêm)", () => {
   it("giờ lớn hơn start giữ nguyên", () => {
     expect(toAbsoluteMinutes("22:00", RANGE_OVERNIGHT.start)).toBe(1320);
   });
+  it("giờ trên full-day range giữ nguyên", () => {
+    expect(toAbsoluteMinutes("09:00", FULL_DAY_RANGE.start)).toBe(540);
+    expect(toAbsoluteMinutes("23:30", FULL_DAY_RANGE.start)).toBe(1410);
+  });
 });
 
 describe("timeToX", () => {
@@ -47,8 +64,20 @@ describe("timeToX", () => {
   });
   it("hỗ trợ giờ qua nửa đêm", () => {
     const px = 4;
-    // 01:00 hôm sau = 1500, start=540 -> (1500-540)*4
     expect(timeToX(1500, RANGE_OVERNIGHT, px)).toBe((1500 - 540) * px);
+  });
+  it("vị trí chính xác trên full-day range", () => {
+    const px = 1;
+    // 00:00 = 0 -> 0
+    expect(timeToX(0, FULL_DAY_RANGE, px)).toBe(0);
+    // 12:00 = 720 -> 720
+    expect(timeToX(720, FULL_DAY_RANGE, px)).toBe(720);
+    // 18:00 = 1080 -> 1080
+    expect(timeToX(1080, FULL_DAY_RANGE, px)).toBe(1080);
+    // 23:30 = 1410 -> 1410
+    expect(timeToX(1410, FULL_DAY_RANGE, px)).toBe(1410);
+    // 24:00 = 1440 -> 1440
+    expect(timeToX(1440, FULL_DAY_RANGE, px)).toBe(1440);
   });
 });
 
@@ -72,6 +101,7 @@ describe("timelineDuration", () => {
   it("tính tổng phút", () => {
     expect(timelineDuration(RANGE_SAME_DAY)).toBe(540);
     expect(timelineDuration(RANGE_OVERNIGHT)).toBe(1200);
+    expect(timelineDuration(FULL_DAY_RANGE)).toBe(1440);
   });
 });
 
@@ -81,12 +111,15 @@ describe("formatAbsoluteHour (format 25:00)", () => {
     expect(formatAbsoluteHour(1080)).toBe("18:00");
   });
   it("giờ qua nửa đêm thành 25:00 khi padDay", () => {
-    // 01:00 hôm sau = 1500 -> 25:00
     expect(formatAbsoluteHour(1500, { padDay: true })).toBe("25:00");
     expect(formatAbsoluteHour(1740, { padDay: true })).toBe("29:00");
   });
   it("không padDay thì quay vòng 00:00", () => {
     expect(formatAbsoluteHour(1500)).toBe("01:00");
+  });
+  it("format 00:00 và 24:00 trên full-day range", () => {
+    expect(formatAbsoluteHour(0)).toBe("00:00");
+    expect(formatAbsoluteHour(1440)).toBe("00:00"); // 24:00 = 00:00 wrap
   });
 });
 

@@ -1,5 +1,6 @@
 import {
-  toAbsoluteMinutes,
+  parseTimeToMinutes,
+  toOvernightEndMinutes,
   type TimeRange,
 } from "./schedule.utils";
 import type {
@@ -16,12 +17,23 @@ import type {
 
 function statusToken(status: string): BookingStatusToken {
   if (status === "confirmed") return "confirmed";
+  if (status === "pending") return "pending";
+  if (status === "checked-in" || status === "checked_in") return "checked-in";
+  if (status === "completed") return "completed";
   if (status === "cancelled") return "cancelled";
   return "other";
 }
 
-// Map response tổng hợp GET /api/admin/schedule -> ScheduleViewModel.
-// Không còn N+1: reservation.therapist_id + courses đã có sẵn trong 1 request.
+function toShiftStartMinutes(startTime: string, spansMidnight: boolean): number {
+  return spansMidnight ? parseTimeToMinutes(startTime) : parseTimeToMinutes(startTime);
+}
+
+function toShiftEndMinutes(endTime: string, spansMidnight: boolean): number {
+  if (spansMidnight) return toOvernightEndMinutes(endTime);
+  return parseTimeToMinutes(endTime);
+}
+
+// Map response tổng hợp GET /api/admin/booking -> ScheduleViewModel.
 export function toScheduleViewModel(
   raw: ScheduleResponseRaw,
   timeline: TimeRange,
@@ -45,8 +57,8 @@ export function toScheduleViewModel(
     if (s.therapist_name) therapistName.set(tid, s.therapist_name);
     shiftsByTherapist.get(tid)!.push({
       id: s.shift_id,
-      startMinutes: toAbsoluteMinutes(s.start_time, timeline.start),
-      endMinutes: toAbsoluteMinutes(s.end_time, timeline.start),
+      startMinutes: toShiftStartMinutes(s.start_time, s.spans_midnight),
+      endMinutes: toShiftEndMinutes(s.end_time, s.spans_midnight),
       isActive: s.is_active,
     });
   }
@@ -66,8 +78,8 @@ export function toScheduleViewModel(
         bookingDate: b.booking_date,
         therapistId: tid,
         therapistName: res.therapist_name ?? therapistName.get(tid) ?? null,
-        startMinutes: toAbsoluteMinutes(res.start_time, timeline.start),
-        endMinutes: toAbsoluteMinutes(res.end_time, timeline.start),
+        startMinutes: toShiftStartMinutes(res.start_time, res.spans_midnight),
+        endMinutes: toShiftEndMinutes(res.end_time, res.spans_midnight),
         status: statusToken(b.status),
         customerName: b.customer?.name ?? null,
         customerPhone: b.customer?.phone ?? "",

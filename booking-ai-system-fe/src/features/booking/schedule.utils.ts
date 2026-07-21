@@ -4,10 +4,13 @@
 
 export const MINUTES_PER_DAY = 1440;
 
+// Full-day timeline: 00:00 – 24:00 (1440 phút)
+export const FULL_DAY_RANGE: TimeRange = { start: 0, end: MINUTES_PER_DAY };
+
 export interface TimeRange {
-  // Phút tuyệt đối của đầu timeline (vd 09:00 = 540)
+  // Phút tuyệt đối của đầu timeline (vd 09:00 = 540, 00:00 = 0)
   start: number;
-  // Phút tuyệt đối của cuối timeline (vd 05:00 hôm sau = 300 + 1440 = 1740)
+  // Phút tuyệt đối của cuối timeline (vd 05:00 hôm sau = 300 + 1440 = 1740, 24:00 = 1440)
   end: number;
 }
 
@@ -19,13 +22,21 @@ export function parseTimeToMinutes(time: string): number {
 
 // Chuyển giờ thành phút tuyệt đối trên timeline, xử lý qua nửa đêm.
 // Nếu giờ < start (vd 01:00 khi start=09:00) => coi là sang ngày hôm sau (+1440).
-export function toAbsoluteMinutes(time: string, timelineStart: number): number {
+export function toAbsoluteMinutes(
+  time: string,
+  timelineStart: number,
+): number {
   let mins = parseTimeToMinutes(time);
   if (mins < timelineStart && timelineStart >= 0) {
-    // chỉ cộng 1 ngày khi timeline đi qua nửa đêm (end > start + 1440 là không, nhưng end > start)
     mins += MINUTES_PER_DAY;
   }
   return mins;
+}
+
+// Helper: tính absolute minutes cho end_time của item có spans_midnight=true.
+// Trên full-day range (start=0), parseTimeToMinutes giữ nguyên, cần +1440.
+export function toOvernightEndMinutes(time: string): number {
+  return parseTimeToMinutes(time) + MINUTES_PER_DAY;
 }
 
 // Phút tuyệt đối trên timeline -> "HH:MM" (naive, giờ đồng hồ).
@@ -99,6 +110,48 @@ export function snapMinutes(absoluteMinutes: number, stepMinutes: number): numbe
   return Math.round(absoluteMinutes / stepMinutes) * stepMinutes;
 }
 
+// Floor xuống step gần nhất
+export function floorToStep(absoluteMinutes: number, stepMinutes: number): number {
+  return Math.floor(absoluteMinutes / stepMinutes) * stepMinutes;
+}
+
+// Ceil lên step gần nhất
+export function ceilToStep(absoluteMinutes: number, stepMinutes: number): number {
+  return Math.ceil(absoluteMinutes / stepMinutes) * stepMinutes;
+}
+
+// Tạo selection mặc định khi click đơn (start = floor, duration = step)
+export function createDefaultSelection(
+  clickedMinutes: number,
+  stepMinutes: number,
+  rangeEnd: number,
+  therapistId?: string,
+): { startMinutes: number; endMinutes: number; therapistId?: string } {
+  const start = floorToStep(clickedMinutes, stepMinutes);
+  const end = Math.min(start + stepMinutes, rangeEnd);
+  return { startMinutes: start, endMinutes: end, therapistId };
+}
+
+// Chuẩn hoá selection khi drag (floor start, ceil end, min = step)
+export function normalizeDraggedSelection(
+  rawStart: number,
+  rawEnd: number,
+  stepMinutes: number,
+  rangeEnd: number,
+  therapistId?: string,
+): { startMinutes: number; endMinutes: number; therapistId?: string } {
+  const snappedStart = floorToStep(Math.min(rawStart, rawEnd), stepMinutes);
+  let snappedEnd = ceilToStep(Math.max(rawStart, rawEnd), stepMinutes);
+  if (snappedEnd <= snappedStart) {
+    snappedEnd = snappedStart + stepMinutes;
+  }
+  return {
+    startMinutes: snappedStart,
+    endMinutes: Math.min(snappedEnd, rangeEnd),
+    therapistId,
+  };
+}
+
 // Tính khoảng thời gian hiện tại (phút tuyệt đối) từ Date thực tế theo múi giờ shop.
 // Dùng cho CurrentTimeLine. Cần shop timezone.
 export function nowAbsoluteMinutes(
@@ -114,10 +167,7 @@ export function nowAbsoluteMinutes(
     hour12: false,
   }).format(now);
   const mins = parseTimeToMinutes(timeStr);
-  // Nếu giờ hiện tại < start và timeline qua nửa đêm -> coi là ngày hôm sau
-  if (mins < range.start && range.end > range.start + MINUTES_PER_DAY) {
-    return mins + MINUTES_PER_DAY;
-  }
+  // Với full-day range (start=0, end=1440): mọi giờ 00:00-23:59 đều nằm trong khung
   if (mins < range.start || mins > range.end) return null; // ngoài khung
   return mins;
 }
@@ -132,5 +182,24 @@ export function buildTimelineRange(
   let end = parseTimeToMinutes(close);
   if (end <= start) end += MINUTES_PER_DAY; // qua nửa đêm
   return { start, end };
+}
+
+// Tính pixels-per-minute để fit timeline vừa viewport.
+export function calculatePixelsPerMinute(
+  viewportWidth: number,
+  totalMinutes: number,
+): number {
+  if (totalMinutes <= 0 || viewportWidth <= 0) return 1.0;
+  return viewportWidth / totalMinutes;
+}
+
+// Desktop breakpoint: >= 1024px → fit 24h, overflow hidden
+export const FIT_BREAKPOINT = 1024;
+// Mobile fallback PPM khi viewport < breakpoint
+export const MOBILE_PX_PER_MINUTE = 0.65;
+
+// Clamp helper
+export function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 

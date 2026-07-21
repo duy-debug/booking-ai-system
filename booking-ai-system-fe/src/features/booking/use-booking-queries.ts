@@ -1,7 +1,7 @@
 "use client";
 
 import { useApiListQuery, useApiMutation, useApiQuery, apiClient } from "@/shared/hooks/api";
-import type { UUID } from "@/shared/types/common";
+import type { BookingStatus, UUID } from "@/shared/types/common";
 import {
   bookingApi,
   toBookingDetailUi,
@@ -58,13 +58,18 @@ export interface CancelBookingVars {
   cancelReason?: string;
 }
 
+export interface CancelBookingResponse {
+  booking_id: UUID;
+  status: BookingStatus;
+}
+
+export function cancelBooking({ id, cancelReason }: CancelBookingVars) {
+  return apiClient.patch<CancelBookingResponse>(bookingApi.cancel(id), {
+    status: "cancelled",
+    cancel_reason: cancelReason,
+  });
+}
+
 export function useCancelBooking() {
-  return useApiMutation<CancelBookingVars, BookingDetailUi>(({ id, cancelReason }) =>
-    apiClient
-      .patch<BookingDetailRaw>(bookingApi.cancel(id), {
-        status: "cancelled",
-        cancel_reason: cancelReason,
-      })
-      .then(toBookingDetailUi),
-  );
+  return useApiMutation<CancelBookingVars, CancelBookingResponse>(cancelBooking);
 }

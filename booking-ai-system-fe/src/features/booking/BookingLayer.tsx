@@ -1,37 +1,82 @@
-import { timeToX, durationToWidth, type TimeRange } from "./schedule.utils";
-import { PX_PER_MINUTE, STATUS_STYLES } from "./schedule.theme";
+"use client";
+
+import { memo, useCallback } from "react";
+import { timeToX, durationToWidth, absoluteMinutesToHHMM, type TimeRange } from "./schedule.utils";
+import { MIN_BOOKING_WIDTH, STATUS_STYLES } from "./schedule.theme";
 import type { BookingViewModel } from "./schedule.types";
 
 interface BookingLayerProps {
   bookings: BookingViewModel[];
   range: TimeRange;
+  pxPerMinute: number;
   onSelect: (booking: BookingViewModel) => void;
 }
 
-// Lớp booking: mỗi block absolute positioned từ start->end.
-export function BookingLayer({ bookings, range, onSelect }: BookingLayerProps) {
+const BookingBlock = memo(function BookingBlock({
+  booking,
+  x,
+  w,
+  style,
+  onSelect,
+}: {
+  booking: BookingViewModel;
+  x: number;
+  w: number;
+  style: (typeof STATUS_STYLES)[keyof typeof STATUS_STYLES];
+  onSelect: (b: BookingViewModel) => void;
+}) {
+  const handleClick = useCallback(() => onSelect(booking), [booking, onSelect]);
+  const narrow = w < 80;
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      title={`${booking.customerName ?? booking.customerPhone} — ${booking.courseNames.join(", ")} — ${style.label}`}
+      aria-label={`Booking: ${booking.customerName ?? booking.customerPhone}, ${booking.courseNames.join(", ")}, ${absoluteMinutesToHHMM(booking.startMinutes)}-${absoluteMinutesToHHMM(booking.endMinutes)}, ${style.label}`}
+      className={`absolute overflow-hidden rounded border-l-2 ${style.border} ${style.bg} hover:ring-2 hover:ring-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow cursor-pointer`}
+      style={{ left: x, width: Math.max(w, MIN_BOOKING_WIDTH), top: 2, bottom: 2 }}
+    >
+      {narrow ? (
+        <div className="flex items-center justify-center h-full px-0.5">
+          <span className={`text-[10px] font-bold ${style.text} truncate`}>
+            {booking.customerName?.charAt(0) ?? booking.customerPhone?.charAt(0) ?? "?"}
+          </span>
+        </div>
+      ) : (
+        <div className="px-1.5 py-0.5 h-full flex flex-col justify-center gap-0">
+          <div className={`text-xs font-semibold leading-tight truncate ${style.text}`}>
+            {booking.customerName ?? booking.customerPhone}
+          </div>
+          <div className="text-[10px] leading-tight text-zinc-600 truncate">
+            {booking.courseNames.join(", ") || "—"}
+          </div>
+          <div className="text-[10px] leading-tight text-zinc-500">
+            {absoluteMinutesToHHMM(booking.startMinutes)}–{absoluteMinutesToHHMM(booking.endMinutes)}
+          </div>
+        </div>
+      )}
+      <span className="sr-only">{style.label}</span>
+    </button>
+  );
+});
+
+export function BookingLayer({ bookings, range, pxPerMinute, onSelect }: BookingLayerProps) {
   return (
     <div className="absolute inset-0">
       {bookings.map((b) => {
-        const x = timeToX(b.startMinutes, range, PX_PER_MINUTE);
-        const w = durationToWidth(b.endMinutes - b.startMinutes, PX_PER_MINUTE);
-        const style = STATUS_STYLES[b.status];
-        const title = `${b.customerName ?? b.customerPhone} — ${b.courseNames.join(", ")} (${style.label})`;
-        const ariaLabel = `Đặt lịch ${b.customerName ?? b.customerPhone} — ${b.courseNames.join(", ")} — ${style.label}`;
+        const x = timeToX(b.startMinutes, range, pxPerMinute);
+        const w = durationToWidth(b.endMinutes - b.startMinutes, pxPerMinute);
+        const style = STATUS_STYLES[b.status] ?? STATUS_STYLES.other;
         return (
-          <button
+          <BookingBlock
             key={b.reservationId}
-            type="button"
-            title={title}
-            aria-label={ariaLabel}
-            onClick={() => onSelect(b)}
-            className={`absolute top-1.5 bottom-1.5 overflow-hidden rounded-md border px-2 py-1 text-left text-xs ${style.bg} ${style.border} hover:ring-2 hover:ring-blue-400`}
-            style={{ left: x, width: Math.max(w, 60) }}
-          >
-            <div className="font-medium text-zinc-900">{b.customerName ?? b.customerPhone}</div>
-            <div className="truncate text-zinc-600">{b.courseNames.join(", ")}</div>
-            <span className="sr-only">{style.label}</span>
-          </button>
+            booking={b}
+            x={x}
+            w={w}
+            style={style}
+            onSelect={onSelect}
+          />
         );
       })}
     </div>

@@ -59,7 +59,7 @@ export interface ShiftViewModel {
   isActive: boolean;
 }
 
-export type BookingStatusToken = "confirmed" | "cancelled" | "other";
+export type BookingStatusToken = "confirmed" | "pending" | "checked-in" | "completed" | "cancelled" | "other";
 
 export interface BookingViewModel {
   bookingId: UUID;
