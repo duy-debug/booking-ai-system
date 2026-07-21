@@ -101,6 +101,8 @@ export interface BookingFormInitial {
   bookingId?: UUID; // edit mode
   customerPhone?: string;
   customerName?: string;
+  timezone?: string;
+  minimumBookingAdvanceMinutes?: number;
 }
 
 // Payload tạo booking gửi lên POST /api/bookings (docs §3.7).

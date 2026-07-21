@@ -50,9 +50,11 @@ function FieldError({ name }: { name: keyof BookingFormValues }) {
 export function BookingBasicInfoRow({
   timeOptions,
   bookingCode,
+  timeNotice,
 }: {
-  timeOptions: { value: string; label: string }[];
+  timeOptions: { value: string; label: string; disabled?: boolean }[];
   bookingCode?: string;
+  timeNotice?: string;
 }) {
   const { register } = useFormContext<BookingFormValues>();
 
@@ -68,12 +70,13 @@ export function BookingBasicInfoRow({
           <label className={fieldLabelClass}>Giờ bắt đầu</label>
           <select className={`${inputClass} w-[100px]`} {...register("startTime")}>
             {timeOptions.map((option) => (
-              <option key={option.value} value={option.value}>
+              <option key={option.value} value={option.value} disabled={option.disabled}>
                 {option.label}
               </option>
             ))}
           </select>
           <FieldError name="startTime" />
+          {timeNotice && <span className="mt-1 block max-w-[260px] text-[11px] text-amber-700">{timeNotice}</span>}
         </div>
         <div>
           <label className={fieldLabelClass}>Số người</label>

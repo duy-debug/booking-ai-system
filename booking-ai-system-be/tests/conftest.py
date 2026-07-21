@@ -2,12 +2,22 @@
 
 import os
 import uuid
+from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
 from supabase import create_client
 
 from app.main import app
+
+
+@pytest.fixture(autouse=True)
+def fixed_booking_clock(monkeypatch):
+    """Keep fixed-date integration fixtures deterministic as real time advances."""
+    monkeypatch.setattr(
+        "app.services.booking_time.current_utc_time",
+        lambda: datetime(2026, 7, 19, 0, 0, tzinfo=timezone.utc),
+    )
 
 # Tiền tố duy nhất cho toàn bộ test session — dễ nhận diện và cleanup
 TAG = f"test-{uuid.uuid4().hex[:8]}"

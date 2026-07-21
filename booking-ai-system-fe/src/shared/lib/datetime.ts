@@ -91,10 +91,10 @@ export function formatVND(value: string | number | null | undefined): string {
 }
 
 // Lấy ngày hôm nay theo múi giờ shop dưới dạng YYYY-MM-DD.
-export function todayShopDate(): string {
+export function todayShopDate(shopTimeZone = timeZone): string {
   const now = new Date();
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
+    timeZone: shopTimeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

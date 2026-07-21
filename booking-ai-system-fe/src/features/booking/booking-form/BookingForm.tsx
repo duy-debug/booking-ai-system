@@ -19,13 +19,18 @@ import {
   type BookingFormInitial,
   type BookingFormValues,
 } from "./booking-form.schema";
-import { BUSINESS_HOURS } from "@/shared/config/shop";
+import { BUSINESS_HOURS, SHOP_TIMEZONE } from "@/shared/config/shop";
 import {
   BookingBasicInfoRow,
   BookingCustomerRow,
   BookingCourseMatrix,
   BookingTherapistRow,
 } from "./booking-form-sections";
+import { parseTimeToMinutes } from "../schedule.utils";
+import {
+  earliestSelectableForDate,
+  validateBookingStart,
+} from "../booking-time";
 
 const TIME_OPTIONS: { value: string; label: string }[] = (() => {
   const out: { value: string; label: string }[] = [];
@@ -112,12 +117,47 @@ export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(funct
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [availabilityRefreshToken, setAvailabilityRefreshToken] = useState(0);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const bookingDate = form.watch("bookingDate");
   const startTime = form.watch("startTime");
   const numberOfPeople = form.watch("numberOfPeople");
   const mainCourseId = form.watch("mainCourseId");
   const addonCourseIds = form.watch("addonCourseIds");
+  const timezone = initial.timezone ?? SHOP_TIMEZONE;
+  const minimumBookingAdvanceMinutes = initial.minimumBookingAdvanceMinutes ?? 15;
+  const earliestSelectableMinutes = isEdit
+    ? null
+    : earliestSelectableForDate({
+        bookingDate,
+        stepMinutes: 15,
+        timeZone: timezone,
+        now,
+        advanceMinutes: minimumBookingAdvanceMinutes,
+      });
+  const timeOptions = useMemo(
+    () => TIME_OPTIONS.map((option) => ({
+      ...option,
+      disabled:
+        earliestSelectableMinutes !== null &&
+        parseTimeToMinutes(option.value) < earliestSelectableMinutes,
+    })),
+    [earliestSelectableMinutes],
+  );
+  const selectedTimeValidation = isEdit
+    ? { valid: true }
+    : validateBookingStart({
+        bookingDate,
+        startMinutes: parseTimeToMinutes(startTime),
+        timeZone: timezone,
+        now,
+        advanceMinutes: minimumBookingAdvanceMinutes,
+      });
   const summary = useMemo<BookingFormSummary>(() => {
     const selectedCourses = courses.filter(
       (course) => course.id === mainCourseId || addonCourseIds.includes(course.id),
@@ -160,7 +200,13 @@ export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(funct
       for (const [field, message] of Object.entries(fields)) {
         form.setError(field as keyof BookingFormValues, { message });
       }
-      if (err.code === "SLOT_CONFLICT" || err.code === "THERAPIST_NOT_AVAILABLE") {
+      if (err.code === "BOOKING_START_IN_PAST" || err.code === "BOOKING_START_TOO_SOON") {
+        const message = err.detail || "Thời gian bắt đầu không còn hợp lệ.";
+        form.setError("startTime", { type: "server", message });
+        setAvailability({ available: false, message });
+        setFormError(message);
+        setAvailabilityRefreshToken((token) => token + 1);
+      } else if (err.code === "SLOT_CONFLICT" || err.code === "THERAPIST_NOT_AVAILABLE") {
         setAvailability({ available: false, message: err.detail });
         setFormError(err.detail);
       } else if (err.code === "CUSTOMER_IN_NG_LIST") {
@@ -206,13 +252,16 @@ export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(funct
             onAvailability={setAvailability}
             onAvailabilityLoading={setAvailabilityLoading}
             refreshToken={availabilityRefreshToken}
+            timezone={timezone}
+            minimumBookingAdvanceMinutes={minimumBookingAdvanceMinutes}
           />
         )}
 
         {/* Hàng 1: Ngày, giờ, số người */}
         <BookingBasicInfoRow
-          timeOptions={TIME_OPTIONS}
+          timeOptions={timeOptions}
           bookingCode={isEdit ? initial.bookingId : undefined}
+          timeNotice={!selectedTimeValidation.valid ? selectedTimeValidation.message : undefined}
         />
 
         {!isEdit && (

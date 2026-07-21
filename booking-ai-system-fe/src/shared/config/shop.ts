@@ -5,8 +5,9 @@ import { env } from "@/shared/config/env";
 
 export const SHOP_TIMEZONE = env.shopTimezone;
 
-// Danh sách khung giờ làm việc mặc định (dùng cho UI chọn ca)
+// Dải giờ bắt đầu có thể chọn trong form. 24:00 là mốc cuối ngày, không phải
+// một start_time hợp lệ, nên option cuối cùng theo bước 15 phút là 23:45.
 export const BUSINESS_HOURS = {
-  open: "09:00",
-  close: "22:00",
+  open: "00:00",
+  close: "23:45",
 } as const;

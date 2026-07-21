@@ -15,8 +15,8 @@ import {
   FIT_BREAKPOINT,
   MOBILE_PX_PER_MINUTE,
 } from "./schedule.utils";
-import { SHOP_TIMEZONE } from "@/shared/config/shop";
 import { todayShopDate } from "@/shared/lib/datetime";
+import { earliestSelectableForDate, validateBookingStart } from "./booking-time";
 
 interface ScheduleBoardProps {
   schedule: ScheduleViewModel | undefined;
@@ -40,6 +40,13 @@ export function ScheduleBoard({
   const [selection, setSelection] = useState<Selection | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const [boardWidth, setBoardWidth] = useState(0);
+  const [now, setNow] = useState(() => new Date());
+  const [selectionError, setSelectionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Clear selection when step or date changes
   useEffect(() => {
@@ -61,11 +68,27 @@ export function ScheduleBoard({
   }, []);
 
   const handleClearSelection = useCallback(() => setSelection(null), []);
-  const handleStartSelection = useCallback((sel: Selection) => setSelection(sel), []);
+  const handleStartSelection = useCallback((sel: Selection) => {
+    setSelectionError(null);
+    setSelection(sel);
+  }, []);
   const handleCommitSelection = useCallback((sel: Selection) => {
+    if (!schedule) return;
+    const validation = validateBookingStart({
+      bookingDate: schedule.date,
+      startMinutes: sel.startMinutes,
+      timeZone: schedule.timezone,
+      now: new Date(),
+      advanceMinutes: schedule.minimumBookingAdvanceMinutes,
+    });
+    if (!validation.valid) {
+      setSelection(null);
+      setSelectionError(validation.message ?? "Thời gian bắt đầu không hợp lệ.");
+      return;
+    }
     onCreateBooking(sel);
     setSelection(null);
-  }, [onCreateBooking]);
+  }, [onCreateBooking, schedule]);
 
   const bookingsByTherapist = useMemo(() => {
     if (!schedule) return new Map<string, BookingViewModel[]>();
@@ -118,7 +141,14 @@ export function ScheduleBoard({
       : MOBILE_PX_PER_MINUTE
     : 1.0;
 
-  const isToday = schedule.date === todayShopDate();
+  const isToday = schedule.date === todayShopDate(schedule.timezone);
+  const earliestSelectableMinutes = earliestSelectableForDate({
+    bookingDate: schedule.date,
+    stepMinutes: step,
+    timeZone: schedule.timezone,
+    now,
+    advanceMinutes: schedule.minimumBookingAdvanceMinutes,
+  });
 
   return (
     <div
@@ -126,6 +156,11 @@ export function ScheduleBoard({
       className={`h-full border border-zinc-200 rounded-lg bg-white ${isDesktop ? "overflow-hidden" : "overflow-auto"}`}
     >
       <ScheduleHeader range={range} pxPerMinute={pxPerMinute} />
+      {selectionError && (
+        <div role="status" className="border-b border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700">
+          {selectionError}
+        </div>
+      )}
       {/* Each ResourceRow has its own ResourceColumn + timeline */}
       <div className="relative">
         {schedule.resources.map((res) => (
@@ -141,13 +176,19 @@ export function ScheduleBoard({
             onStartSelection={handleStartSelection}
             onCommitSelection={handleCommitSelection}
             onClearSelection={handleClearSelection}
+            earliestSelectableMinutes={earliestSelectableMinutes}
+            onInvalidSelection={() => setSelectionError(
+              earliestSelectableMinutes === Number.POSITIVE_INFINITY
+                ? "Không thể tạo booking cho ngày trong quá khứ."
+                : `Booking phải bắt đầu sau ít nhất ${schedule.minimumBookingAdvanceMinutes} phút.`,
+            )}
           />
         ))}
         {isToday && (
           <CurrentTimeLine
             range={range}
             date={schedule.date}
-            timezone={SHOP_TIMEZONE}
+            timezone={schedule.timezone}
             pxPerMinute={pxPerMinute}
           />
         )}

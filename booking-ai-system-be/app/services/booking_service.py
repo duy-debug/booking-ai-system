@@ -24,6 +24,7 @@ from app.schemas.booking import (
     BookingCreate,
     BookingPatchInput,
 )
+from app.services.booking_time import validate_booking_start
 
 
 def _to_hhmm(value) -> str:
@@ -125,6 +126,10 @@ class BookingService:
             raise AppError(404, code="SHOP_NOT_FOUND", detail="Không tìm thấy shop")
         if not shop.is_active:
             raise AppError(422, code="SHOP_INACTIVE", detail="Shop không hoạt động")
+
+        # booking_date/start_time là giá trị local của shop trong DB. Ghép chúng với
+        # timezone shop rồi so sánh ở UTC trước mọi kiểm tra availability khác.
+        validate_booking_start(body.booking_date, body.start_time)
 
         # Kiểm tra idempotency key trùng
         existing = self.schedule_repo.find_by_idempotency_key(idempotency_key)
@@ -459,6 +464,7 @@ class BookingService:
                 "shop_id": str(shop.shop_id),
                 "name": shop.name,
                 "timezone": settings.SHOP_TIMEZONE,
+                "minimum_booking_advance_minutes": settings.MINIMUM_BOOKING_ADVANCE_MINUTES,
                 "business_hours": business_hours,
             },
             "date": schedule_date.isoformat(),

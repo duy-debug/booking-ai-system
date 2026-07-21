@@ -16,6 +16,7 @@ from app.schemas.available_slot import (
     AvailableSlotResponse,
     AvailableTherapistResponse,
 )
+import app.services.booking_time as booking_time
 
 
 class SlotService:
@@ -108,17 +109,20 @@ class SlotService:
 
         step = 15
         slots = []
+        now = booking_time.current_utc_time()
         for f_start, f_end in free_intervals:
             cursor = f_start
             while cursor + total_duration <= f_end:
-                slots.append(
-                    AvailableSlotResponse(
-                        start_time=self._minutes_to_time(cursor),
-                        end_time=self._minutes_to_time(cursor + total_duration),
-                        duration_minutes=total_duration,
-                        available=True,
-                    ).model_dump(mode="json")
-                )
+                slot_start = self._minutes_to_time(cursor)
+                if booking_time.is_booking_start_allowed(booking_date, slot_start, now=now):
+                    slots.append(
+                        AvailableSlotResponse(
+                            start_time=slot_start,
+                            end_time=self._minutes_to_time(cursor + total_duration),
+                            duration_minutes=total_duration,
+                            available=True,
+                        ).model_dump(mode="json")
+                    )
                 cursor += step
 
         return {

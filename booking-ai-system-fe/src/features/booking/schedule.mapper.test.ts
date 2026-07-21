@@ -9,7 +9,8 @@ const raw: ScheduleResponseRaw = {
   shop: {
     shop_id: "shop1",
     name: "Shop A",
-    timezone: "Asia/Ho_Chi_Minh",
+      timezone: "Asia/Ho_Chi_Minh",
+      minimum_booking_advance_minutes: 15,
     business_hours: { open: "09:00", close: "22:00", spans_midnight: false },
   },
   date: "2026-07-20",

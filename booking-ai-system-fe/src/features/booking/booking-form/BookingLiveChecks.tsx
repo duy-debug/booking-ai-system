@@ -10,6 +10,8 @@ import {
 import type { UUID } from "@/shared/types/common";
 import type { AvailabilityState } from "./BookingForm";
 import type { BookingFormValues } from "./booking-form.schema";
+import { parseTimeToMinutes } from "../schedule.utils";
+import { validateBookingStart } from "../booking-time";
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -24,6 +26,8 @@ export function BookingLiveChecks({
   onAvailability,
   onAvailabilityLoading,
   refreshToken = 0,
+  timezone,
+  minimumBookingAdvanceMinutes,
 }: {
   form: UseFormReturn<BookingFormValues>;
   shopId: UUID;
@@ -32,6 +36,8 @@ export function BookingLiveChecks({
   onAvailability: (a: AvailabilityState | null) => void;
   onAvailabilityLoading: (loading: boolean) => void;
   refreshToken?: number;
+  timezone: string;
+  minimumBookingAdvanceMinutes: number;
 }) {
   const phone = useWatch({ control: form.control, name: "customerPhone" });
   const mainCourseId = useWatch({ control: form.control, name: "mainCourseId" });
@@ -43,23 +49,41 @@ export function BookingLiveChecks({
   const requestedTherapistId = useWatch({ control: form.control, name: "requestedTherapistId" });
   const requestedGender = useWatch({ control: form.control, name: "requestedGender" });
 
-  const eligibilityMut = useCheckEligibility();
+  const { mutateAsync: checkEligibility } = useCheckEligibility();
+  const checkEligibilityRef = useRef(checkEligibility);
+  const eligibilityReqId = useRef(0);
+  const eligibilityPhone = useRef<string | null>(null);
   const availabilityReqId = useRef(0);
+
+  useEffect(() => {
+    checkEligibilityRef.current = checkEligibility;
+  }, [checkEligibility]);
 
   // Debounce 400ms eligibility check khi SĐT thay đổi
   useEffect(() => {
+    const reqId = ++eligibilityReqId.current;
     if (!phone || !/^\+?\d{6,15}$/.test(phone)) {
-      onEligibility(null);
+      if (eligibilityPhone.current !== null) {
+        eligibilityPhone.current = null;
+        onEligibility(null);
+      }
       return;
     }
-    const t = setTimeout(() => {
-      eligibilityMut
-        .mutateAsync({ phone, shop_id: shopId })
-        .then(onEligibility)
-        .catch(() => onEligibility(null));
+    eligibilityPhone.current = phone;
+    const t = setTimeout(async () => {
+      try {
+        const result = await checkEligibilityRef.current({ phone, shop_id: shopId });
+        if (reqId === eligibilityReqId.current && eligibilityPhone.current === phone) {
+          onEligibility(result);
+        }
+      } catch {
+        if (reqId === eligibilityReqId.current && eligibilityPhone.current === phone) {
+          onEligibility(null);
+        }
+      }
     }, 400);
     return () => clearTimeout(t);
-  }, [phone, shopId, eligibilityMut, onEligibility]);
+  }, [phone, shopId, onEligibility]);
 
   // Debounce 400ms availability check (backend source of truth), abort stale.
   useEffect(() => {
@@ -72,6 +96,17 @@ export function BookingLiveChecks({
       numberOfPeople > 3
     ) {
       onAvailability(null);
+      return;
+    }
+    const startValidation = validateBookingStart({
+      bookingDate,
+      startMinutes: parseTimeToMinutes(startTime),
+      timeZone: timezone,
+      advanceMinutes: minimumBookingAdvanceMinutes,
+    });
+    if (!startValidation.valid) {
+      onAvailability({ available: false, message: startValidation.message });
+      onAvailabilityLoading(false);
       return;
     }
     if (submitting) return;
@@ -120,6 +155,8 @@ export function BookingLiveChecks({
     onAvailability,
     onAvailabilityLoading,
     refreshToken,
+    timezone,
+    minimumBookingAdvanceMinutes,
   ]);
 
   return null;

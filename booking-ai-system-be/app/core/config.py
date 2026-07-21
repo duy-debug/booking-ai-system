@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     # Múi giờ nghiệp vụ mặc định của shop. Backend lưu start_time/end_time là
     # giá trị NAIVE (không kèm múi giờ); client phải interpret theo múi giờ này.
     SHOP_TIMEZONE: str = "Asia/Ho_Chi_Minh"
+    MINIMUM_BOOKING_ADVANCE_MINUTES: int = 15
 
     # Khung giờ hoạt động mặc định dùng khi shop không có ca nào trong ngày.
     BUSINESS_HOURS_OPEN: str = "09:00"

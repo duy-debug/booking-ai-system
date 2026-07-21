@@ -22,6 +22,8 @@ interface ResourceRowProps {
   onStartSelection: (sel: Selection) => void;
   onCommitSelection: (sel: Selection) => void;
   onClearSelection: () => void;
+  earliestSelectableMinutes: number | null;
+  onInvalidSelection: () => void;
 }
 
 const ResourceRowInner = memo(function ResourceRowInner({
@@ -35,6 +37,8 @@ const ResourceRowInner = memo(function ResourceRowInner({
   onStartSelection,
   onCommitSelection,
   onClearSelection,
+  earliestSelectableMinutes,
+  onInvalidSelection,
 }: ResourceRowProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const totalWidth = (range.end - range.start) * pxPerMinute;
@@ -47,6 +51,14 @@ const ResourceRowInner = memo(function ResourceRowInner({
     const rect = trackRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const clickedMinutes = xToMinutes(x, range, pxPerMinute);
+
+    if (
+      earliestSelectableMinutes !== null &&
+      clickedMinutes < earliestSelectableMinutes
+    ) {
+      onInvalidSelection();
+      return;
+    }
 
     // Only create selection if clicked within an active shift
     const inActiveShift = resource.shifts.some(
@@ -62,7 +74,7 @@ const ResourceRowInner = memo(function ResourceRowInner({
 
     const sel = createDefaultSelection(clickedMinutes, step, range.end, resource.therapistId);
     onStartSelection(sel);
-  }, [range, step, pxPerMinute, resource.therapistId, onStartSelection, resource.shifts, bookings]);
+  }, [range, step, pxPerMinute, resource.therapistId, onStartSelection, resource.shifts, bookings, earliestSelectableMinutes, onInvalidSelection]);
 
   const rowSelection = selection?.therapistId === resource.therapistId ? selection : null;
 
@@ -74,9 +86,22 @@ const ResourceRowInner = memo(function ResourceRowInner({
         className="relative cursor-pointer bg-white"
         style={{ width: totalWidth }}
         onClick={handleClick}
+        title={earliestSelectableMinutes === Number.POSITIVE_INFINITY ? "Không thể tạo booking cho ngày trong quá khứ" : undefined}
       >
         <TimeGrid range={range} height={ROW_HEIGHT} pxPerMinute={pxPerMinute} step={step} />
         <ShiftLayer shifts={resource.shifts} range={range} pxPerMinute={pxPerMinute} />
+        {earliestSelectableMinutes !== null && earliestSelectableMinutes > range.start && (
+          <div
+            className="pointer-events-none absolute inset-y-0 left-0 border-r border-red-200 bg-zinc-400/20"
+            style={{
+              width: Math.min(
+                totalWidth,
+                (earliestSelectableMinutes - range.start) * pxPerMinute,
+              ),
+            }}
+            aria-hidden="true"
+          />
+        )}
         <BookingLayer bookings={bookings} range={range} pxPerMinute={pxPerMinute} onSelect={onSelectBooking} />
         <SelectionLayer
           selection={rowSelection}

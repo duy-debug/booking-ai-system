@@ -99,6 +99,8 @@ export function toScheduleViewModel(
     resources,
     bookings: bookingViewModels,
     date,
+    timezone: raw.shop.timezone,
+    minimumBookingAdvanceMinutes: raw.shop.minimum_booking_advance_minutes ?? 15,
     timelineStartMinutes: timeline.start,
     timelineEndMinutes: timeline.end,
   };

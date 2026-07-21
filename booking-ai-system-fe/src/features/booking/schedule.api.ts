@@ -6,6 +6,7 @@ export interface ScheduleShopRaw {
   shop_id: UUID;
   name: string;
   timezone: string;
+  minimum_booking_advance_minutes: number;
   business_hours: {
     open: string;
     close: string;

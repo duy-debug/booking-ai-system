@@ -38,8 +38,15 @@ export default function AdminBookingsPage() {
 
   const handleCreate = useCallback((sel: Selection) => {
     if (!activeShopId) return;
-    setDrawer({ kind: "create", selection: sel, shopId: activeShopId, bookingDate: date });
-  }, [activeShopId, date]);
+    setDrawer({
+      kind: "create",
+      selection: sel,
+      shopId: activeShopId,
+      bookingDate: date,
+      timezone: scheduleQuery.data?.timezone ?? "Asia/Ho_Chi_Minh",
+      minimumBookingAdvanceMinutes: scheduleQuery.data?.minimumBookingAdvanceMinutes ?? 15,
+    });
+  }, [activeShopId, date, scheduleQuery.data]);
 
   const handleSelectBooking = useCallback((b: BookingViewModel) => {
     if (!activeShopId) return;

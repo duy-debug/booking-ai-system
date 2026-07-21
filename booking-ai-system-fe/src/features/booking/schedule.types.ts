@@ -80,6 +80,8 @@ export interface ScheduleViewModel {
   resources: ResourceViewModel[];
   bookings: BookingViewModel[];
   date: ISODate;
+  timezone: string;
+  minimumBookingAdvanceMinutes: number;
   // Khoảng hiển thị tính bằng phút tuyệt đối
   timelineStartMinutes: number;
   timelineEndMinutes: number;

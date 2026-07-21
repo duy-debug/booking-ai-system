@@ -28,7 +28,14 @@ import type { BookingFormInitial } from "./booking-form.schema";
 import { resolveCloseIntent, resolveEscapeIntent } from "./booking-close-flow";
 
 export type BookingDrawerState =
-  | { kind: "create"; selection: Selection; shopId: UUID; bookingDate: string }
+  | {
+      kind: "create";
+      selection: Selection;
+      shopId: UUID;
+      bookingDate: string;
+      timezone: string;
+      minimumBookingAdvanceMinutes: number;
+    }
   | { kind: "edit"; booking: BookingViewModel; shopId: UUID; bookingDate: string }
   | null;
 
@@ -162,6 +169,8 @@ function BookingModalInner({
         bookingDate: state.bookingDate,
         startTime: absoluteMinutesToHHMM(state.selection.startMinutes),
         therapistId: state.selection.therapistId as UUID | undefined,
+        timezone: state.timezone,
+        minimumBookingAdvanceMinutes: state.minimumBookingAdvanceMinutes,
       };
     }
     const d = detailQuery.data;
