@@ -697,14 +697,11 @@ class BookingService:
 
         displaced = overlaps[0]
         displaced_booking = displaced.booking
-        if (
-            displaced.assignment_source != "auto"
-            or displaced_booking.number_of_people <= 1
-        ):
+        if displaced.assignment_source != "auto":
             raise AppError(
                 409,
                 code="THERAPIST_NOT_AVAILABLE",
-                detail="Therapist đang phục vụ một booking được chỉ định và không thể thay đổi tự động.",
+                detail="Therapist đang phục vụ một reservation được chỉ định và không thể thay đổi tự động.",
             )
 
         replacement = self.availability_service.evaluate(
@@ -729,7 +726,7 @@ class BookingService:
             raise AppError(
                 409,
                 code="NO_REPLACEMENT_THERAPIST_AVAILABLE",
-                detail="Không có therapist khác khả dụng để thay thế cho booking nhóm.",
+                detail="Không có therapist khác khả dụng để thay thế cho reservation tự động.",
             )
 
         displaced.therapist_id = _secure_random.choice(candidates).therapist_id

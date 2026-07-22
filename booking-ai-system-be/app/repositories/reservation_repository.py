@@ -100,6 +100,29 @@ class ReservationRepository:
         )
         return list(self.session.scalars(stmt).all())
 
+    def find_overlaps(
+        self,
+        therapist_id: UUID,
+        booking_date: date,
+        start_time: time,
+        end_time: time,
+    ) -> list[Reservation]:
+        """Return active reservations occupying a therapist without taking locks."""
+        stmt = (
+            select(Reservation)
+            .join(Booking)
+            .where(
+                Reservation.therapist_id == therapist_id,
+                Booking.booking_date == booking_date,
+                Booking.status != "cancelled",
+                Reservation.start_time < end_time,
+                Reservation.end_time > start_time,
+            )
+            .options(joinedload(Reservation.booking))
+            .order_by(Reservation.reservation_id)
+        )
+        return list(self.session.scalars(stmt).all())
+
     # Kiểm tra xung đột slot — có reservation nào trong khung giờ không
     def exists_slot_conflict(
         self,

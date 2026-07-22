@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError
-from app.repositories import CourseRepository, ShopRepository
+from app.repositories import CourseRepository, ReservationRepository, ShopRepository
 from app.schemas.available_slot import (
     AvailableSlotMeta,
     AvailableSlotResponse,
@@ -19,6 +19,7 @@ class SlotService:
         self.session = session
         self.shop_repo = ShopRepository(session)
         self.course_repo = CourseRepository(session)
+        self.reservation_repo = ReservationRepository(session)
         self.availability_service = TherapistAvailabilityService(session)
 
     def list_available_slots(
@@ -85,10 +86,29 @@ class SlotService:
             window = booking_time.booking_start_window(
                 booking_date, slot_start, now=now
             )
-            available = result.available_therapist_count >= number_of_people
             reason_code, message = self._unavailable_reason(
                 number_of_people, result, window
             )
+            priority_available = (
+                reason_code == "SLOT_CONFLICT"
+                and number_of_people == 1
+                and request_type == "specific"
+                and therapist_id is not None
+                and self._can_rebalance_specific_assignment(
+                    shop_id=shop_id,
+                    booking_date=booking_date,
+                    start_time=slot_start,
+                    end_time=slot_end,
+                    requested_therapist_id=UUID(str(therapist_id)),
+                    context=context,
+                )
+            )
+            available = (
+                result.available_therapist_count >= number_of_people
+                or priority_available
+            )
+            if priority_available:
+                reason_code, message = None, None
             if reason_code:
                 available = False
             slots.append(
@@ -99,7 +119,10 @@ class SlotService:
                     available=available,
                     reason_code=None if available else reason_code,
                     message=None if available else message,
-                    available_therapist_count=result.available_therapist_count,
+                    available_therapist_count=max(
+                        result.available_therapist_count,
+                        1 if priority_available else 0,
+                    ),
                     required_therapist_count=number_of_people,
                 ).model_dump(mode="json")
             )
@@ -113,6 +136,41 @@ class SlotService:
                 number_of_people=number_of_people,
             ).model_dump(mode="json"),
         }
+
+    def _can_rebalance_specific_assignment(
+        self,
+        shop_id: UUID,
+        booking_date: date,
+        start_time: time,
+        end_time: time,
+        requested_therapist_id: UUID,
+        context,
+    ) -> bool:
+        overlaps = self.reservation_repo.find_overlaps(
+            requested_therapist_id, booking_date, start_time, end_time
+        )
+        if len(overlaps) != 1 or overlaps[0].assignment_source != "auto":
+            return False
+
+        displaced = overlaps[0]
+        displaced_booking = displaced.booking
+        replacement = self.availability_service.evaluate(
+            shop_id=shop_id,
+            booking_date=booking_date,
+            start_time=displaced.start_time,
+            end_time=displaced.end_time,
+            request_type=(
+                "gender"
+                if displaced_booking.therapist_request_type == "gender"
+                else "none"
+            ),
+            requested_gender=displaced_booking.requested_gender,
+            context=context,
+        )
+        return any(
+            therapist.therapist_id != requested_therapist_id
+            for therapist in replacement.available_therapists
+        )
 
     def list_available_therapists(
         self,

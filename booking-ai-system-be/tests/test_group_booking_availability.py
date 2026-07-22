@@ -8,6 +8,7 @@ from app.core.exceptions import AppError
 from app.schemas.booking import BookingPatchInput, TherapistRequestInput
 from app.repositories.reservation_repository import ReservationRepository
 from app.services.booking_service import BookingService
+from app.services.slot_service import SlotService
 from app.services.therapist_availability_service import TherapistAvailabilityService
 
 
@@ -544,6 +545,61 @@ def auto_group_reservation(requested_therapist_id):
         start_time=START,
         end_time=END,
     )
+
+
+def test_specific_request_rebalances_auto_single_reservation():
+    requested_id = uuid4()
+    replacement = therapist("Single replacement")
+    displaced = auto_group_reservation(requested_id)
+    displaced.booking.number_of_people = 1
+    instance = priority_service(
+        displaced,
+        availability_result(),
+        availability_result([replacement]),
+    )
+
+    resolved = instance._resolve_specific_therapist_with_priority(
+        SHOP_ID, BOOKING_DATE, START, END, requested_id
+    )
+
+    assert resolved == requested_id
+    assert displaced.therapist_id == replacement.therapist_id
+    assert displaced.assignment_source == "auto"
+
+
+def test_slot_precheck_reports_auto_single_as_rebalanceable():
+    requested_id = uuid4()
+    replacement = therapist("Precheck replacement")
+    displaced = auto_group_reservation(requested_id)
+    displaced.booking.number_of_people = 1
+    instance = SlotService.__new__(SlotService)
+    instance.reservation_repo = SimpleNamespace(
+        find_overlaps=lambda *args: [displaced]
+    )
+    instance.availability_service = SimpleNamespace(
+        evaluate=lambda **kwargs: availability_result([replacement])
+    )
+
+    assert instance._can_rebalance_specific_assignment(
+        SHOP_ID, BOOKING_DATE, START, END, requested_id, SimpleNamespace()
+    ) is True
+
+
+def test_slot_precheck_never_rebalances_specific_reservation():
+    requested_id = uuid4()
+    displaced = auto_group_reservation(requested_id)
+    displaced.assignment_source = "specific"
+    instance = SlotService.__new__(SlotService)
+    instance.reservation_repo = SimpleNamespace(
+        find_overlaps=lambda *args: [displaced]
+    )
+    instance.availability_service = SimpleNamespace(
+        evaluate=lambda **kwargs: pytest.fail("must not search for a replacement")
+    )
+
+    assert instance._can_rebalance_specific_assignment(
+        SHOP_ID, BOOKING_DATE, START, END, requested_id, SimpleNamespace()
+    ) is False
 
 
 def test_specific_request_rebalances_auto_group_reservation():
