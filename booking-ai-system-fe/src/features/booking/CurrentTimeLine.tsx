@@ -29,7 +29,7 @@ export function CurrentTimeLine({ range, date, timezone, pxPerMinute }: CurrentT
 
   return (
     <div
-      className="pointer-events-none absolute top-0 z-20"
+      className="pointer-events-none absolute top-0 z-[4]"
       style={{ left }}
     >
       <div className="h-full w-0.5 bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.5)]" />

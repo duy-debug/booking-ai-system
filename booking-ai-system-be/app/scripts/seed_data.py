@@ -2,7 +2,6 @@
 # Xoá toàn bộ dữ liệu cũ và insert dữ liệu mới sát thực tế
 
 import uuid
-import random
 from datetime import date, time, timedelta
 from decimal import Decimal
 
@@ -69,46 +68,73 @@ COURSES = {
     ],
 }
 
-THERAPISTS = {
-    "thien-an-massage": [
-        ("ther-ta-01", "Nguyễn Thị Lan", "female"),
-        ("ther-ta-02", "Trần Thị Hoa", "female"),
-        ("ther-ta-03", "Lê Văn Tâm", "male"),
-        ("ther-ta-04", "Phạm Thị Ngọc", "female"),
-        ("ther-ta-05", "Hoàng Văn Bảo", "male"),
-        ("ther-ta-06", "Đỗ Thị Mai", "female"),
-        ("ther-ta-07", "Vũ Thị Hạnh", "female"),
-        ("ther-ta-08", "Ngô Văn Phúc", "male"),
-    ],
-    "phuc-an-massage": [
-        ("ther-pa-01", "Phan Thị Kim", "female"),
-        ("ther-pa-02", "Huỳnh Văn Đức", "male"),
-        ("ther-pa-03", "Đặng Thị Thu", "female"),
-        ("ther-pa-04", "Bùi Văn Trung", "male"),
-        ("ther-pa-05", "Trương Thị Ánh", "female"),
-        ("ther-pa-06", "Lý Văn Hùng", "male"),
-        ("ther-pa-07", "Mai Thị Phượng", "female"),
-    ],
-}
-
-SHIFT_SLOTS = [
-    (time(8, 0), time(12, 0)),
-    (time(9, 0), time(13, 0)),
-    (time(12, 0), time(17, 0)),
-    (time(13, 0), time(18, 0)),
-    (time(17, 0), time(21, 0)),
-    (time(18, 0), time(22, 0)),
+JAPANESE_SURNAMES = [
+    "佐藤", "鈴木", "高橋", "田中", "伊藤", "渡辺", "山本", "中村",
+    "小林", "加藤", "吉田", "山田", "佐々木", "山口", "松本", "井上",
+    "木村", "林", "斎藤", "清水", "山崎", "森", "池田", "橋本",
+    "阿部", "石川", "山下", "中島", "石井", "小川", "前田", "岡田",
+    "長谷川", "藤田", "後藤", "近藤", "村上", "遠藤", "青木", "坂本",
 ]
 
-CUSTOMERS = [
-    {"phone": "0901234567", "name": "Nguyễn Văn An", "is_member": True, "member_rank": "gold", "visit_count": 15},
-    {"phone": "0902345678", "name": "Trần Thị Bình", "is_member": True, "member_rank": "silver", "visit_count": 8},
-    {"phone": "0903456789", "name": "Lê Hoàng Cường", "is_member": False, "member_rank": None, "visit_count": 3},
-    {"phone": "0904567890", "name": "Phạm Minh Đức", "is_member": True, "member_rank": "gold", "visit_count": 22},
-    {"phone": "0905678901", "name": "Hoàng Thị Hương", "is_member": False, "member_rank": None, "visit_count": 1},
-    {"phone": "0906789012", "name": "Đỗ Văn Khánh", "is_member": True, "member_rank": "silver", "visit_count": 7},
-    {"phone": "0907890123", "name": "Vũ Thị Lan", "is_member": False, "member_rank": None, "visit_count": 5},
+JAPANESE_FEMALE_NAMES = [
+    "美咲", "陽菜", "葵", "結衣", "さくら", "凛", "愛", "七海",
+    "彩花", "優奈", "美月", "花", "莉子", "杏", "千尋", "直子",
+    "恵", "由美", "真央", "玲奈", "香織", "麻衣", "明日香", "奈々",
+    "綾乃", "遥", "桃子", "ひなた", "楓", "琴音",
 ]
+
+JAPANESE_MALE_NAMES = [
+    "蓮", "大翔", "翔太", "悠真", "陽斗", "健太", "拓海", "直樹",
+    "大輔", "和也", "誠", "亮", "優斗", "陸", "颯太", "一樹",
+    "達也", "雄大", "海斗", "浩二", "修平", "智也", "雅人", "健一",
+    "隆", "学", "仁", "湊", "樹", "朝陽",
+]
+
+THERAPISTS_PER_SHOP = 24
+CUSTOMER_COUNT = 240
+SEED_DAYS = 21
+
+
+def build_therapists() -> dict[str, list[tuple[str, str, str]]]:
+    result = {}
+    for shop_index, shop_code in enumerate(COURSES):
+        prefix = "ta" if shop_code == "thien-an-massage" else "pa"
+        employees = []
+        for index in range(THERAPISTS_PER_SHOP):
+            gender = "female" if index % 2 == 0 else "male"
+            given_names = (
+                JAPANESE_FEMALE_NAMES if gender == "female" else JAPANESE_MALE_NAMES
+            )
+            surname = JAPANESE_SURNAMES[(index + shop_index * 17) % len(JAPANESE_SURNAMES)]
+            given_name = given_names[(index * 3 + shop_index * 7) % len(given_names)]
+            employees.append(
+                (f"ther-{prefix}-{index + 1:02d}", f"{surname} {given_name}", gender)
+            )
+        result[shop_code] = employees
+    return result
+
+
+def build_customers() -> list[dict]:
+    customers = []
+    all_given_names = JAPANESE_FEMALE_NAMES + JAPANESE_MALE_NAMES
+    for index in range(CUSTOMER_COUNT):
+        surname = JAPANESE_SURNAMES[index % len(JAPANESE_SURNAMES)]
+        given_name = all_given_names[(index * 7 + index // len(JAPANESE_SURNAMES)) % len(all_given_names)]
+        is_member = index % 4 != 3
+        member_rank = "gold" if index % 12 == 0 else "silver" if is_member else None
+        phone_prefix = ("070", "080", "090")[index % 3]
+        customers.append({
+            "phone": f"{phone_prefix}{index + 1:08d}",
+            "name": f"{surname} {given_name}",
+            "is_member": is_member,
+            "member_rank": member_rank,
+            "visit_count": (index * 7) % 48,
+        })
+    return customers
+
+
+THERAPISTS = build_therapists()
+CUSTOMERS = build_customers()
 
 RESTRICTIONS = [
     {"phone": "0911111111", "reason": "Khách hủy lịch nhiều lần không báo trước", "is_active": True},
@@ -116,12 +142,9 @@ RESTRICTIONS = [
     {"phone": "0911111111", "reason": "Đã hòa giải, mở lại quyền đặt lịch", "is_active": False},
 ]
 
-BOOKING_SAMPLES = [
-    {"shop": "thien-an-massage", "customer_idx": 0, "day_offset": 0, "start": time(9, 0), "course": "massage-thai-90", "therapist_idx": 0},
-    {"shop": "thien-an-massage", "customer_idx": 1, "day_offset": 0, "start": time(14, 0), "course": "massage-da", "therapist_idx": 2},
-    {"shop": "phuc-an-massage", "customer_idx": 2, "day_offset": 0, "start": time(10, 0), "course": "massage-body-90", "therapist_idx": 0},
-    {"shop": "phuc-an-massage", "customer_idx": 3, "day_offset": 1, "start": time(15, 30), "course": "massage-sports", "therapist_idx": 3},
-    {"shop": "thien-an-massage", "customer_idx": 4, "day_offset": 1, "start": time(8, 0), "course": "massage-thai", "therapist_idx": 1},
+BOOKING_START_TIMES = [
+    time(9, 0), time(10, 30), time(12, 0), time(14, 0),
+    time(15, 30), time(17, 0), time(18, 30), time(20, 0),
 ]
 
 # ────────────────────────── SEED ──────────────────────────
@@ -171,13 +194,12 @@ def seed_shifts(db: Session, shops: dict[str, Shop], therapists: dict[str, list[
     for shop_code, tlist in therapists.items():
         shop = shops[shop_code]
         for t in tlist:
-            for offset in range(14):
+            for offset in range(SEED_DAYS):
                 d = today + timedelta(days=offset)
                 if d.weekday() == 6:
                     continue
-                start_t, end_t = random.choice(SHIFT_SLOTS)
                 db.add(TherapistShift(therapist_id=t.therapist_id, shop_id=shop.shop_id,
-                                      work_date=d, start_time=start_t, end_time=end_t, is_active=True))
+                                      work_date=d, start_time=time(8), end_time=time(22), is_active=True))
     db.flush()
 
 def seed_customers(db: Session) -> list[Customer]:
@@ -197,44 +219,88 @@ def seed_restrictions(db: Session):
         db.add(CustomerRestriction(**d))
     db.flush()
 
-def seed_bookings(db: Session, shops: dict[str, Shop], customers: list[Customer], therapists: dict[str, list[Therapist]]):
+def seed_bookings(
+    db: Session,
+    shops: dict[str, Shop],
+    customers: list[Customer],
+    therapists: dict[str, list[Therapist]],
+) -> int:
     print("  Tạo booking mẫu...")
-    for i, bd in enumerate(BOOKING_SAMPLES):
-        shop = shops[bd["shop"]]
-        customer = customers[bd["customer_idx"]]
-        booking_date = date.today() + timedelta(days=bd["day_offset"])
-        start_t = bd["start"]
+    booking_number = 0
+    today = date.today()
 
-        course = db.query(Course).filter(Course.shop_id == shop.shop_id, Course.pos_course_code == bd["course"]).first()
-        if not course:
-            continue
+    for shop_index, (shop_code, shop) in enumerate(shops.items()):
+        shop_courses = db.query(Course).filter(Course.shop_id == shop.shop_id).all()
+        main_courses = [course for course in shop_courses if course.course_type == "main"]
+        addons = [course for course in shop_courses if course.course_type == "addon"]
+        shop_therapists = therapists[shop_code]
 
-        duration = course.duration_minutes
-        total_min = start_t.hour * 60 + start_t.minute + duration
-        end_t = time(total_min // 60 % 24, total_min % 60)
+        for day_offset in range(SEED_DAYS):
+            booking_date = today + timedelta(days=day_offset)
+            if booking_date.weekday() == 6:
+                continue
 
-        therapist = therapists[bd["shop"]][bd["therapist_idx"] % len(therapists[bd["shop"]])]
+            for slot_index, start_t in enumerate(BOOKING_START_TIMES):
+                booking_number += 1
+                main_course = main_courses[
+                    (booking_number + slot_index + shop_index) % len(main_courses)
+                ]
+                selected_courses = [main_course]
+                if booking_number % 4 == 0:
+                    selected_courses.append(addons[booking_number % len(addons)])
 
-        booking = Booking(
-            shop_id=shop.shop_id, customer_id=customer.customer_id,
-            pos_booking_code=f"BK-{booking_date.strftime('%y%m%d')}-{i+1:03d}",
-            pos_sync_status="synced", booking_date=booking_date,
-            start_time=start_t, end_time=end_t, number_of_people=1,
-            total_duration_minutes=duration, status="confirmed", therapist_request_type="none",
-            idempotency_key=uuid.uuid4(),
-        )
-        db.add(booking)
-        db.flush()
+                duration = sum(course.duration_minutes for course in selected_courses)
+                total_min = start_t.hour * 60 + start_t.minute + duration
+                end_t = time(total_min // 60 % 24, total_min % 60)
+                number_of_people = (1, 1, 2, 1, 3)[booking_number % 5]
+                customer = customers[(booking_number * 7 + shop_index) % len(customers)]
+                status = "cancelled" if booking_number % 13 == 0 else "confirmed"
 
-        res = Reservation(booking_id=booking.booking_id, person_index=1,
-                          therapist_id=therapist.therapist_id, start_time=start_t, end_time=end_t, status="assigned")
-        db.add(res)
-        db.flush()
+                booking = Booking(
+                    shop_id=shop.shop_id,
+                    customer_id=customer.customer_id,
+                    pos_booking_code=f"BK-{booking_date.strftime('%y%m%d')}-{booking_number:04d}",
+                    pos_sync_status="synced",
+                    booking_date=booking_date,
+                    start_time=start_t,
+                    end_time=end_t,
+                    number_of_people=number_of_people,
+                    total_duration_minutes=duration,
+                    status=status,
+                    therapist_request_type="none",
+                    idempotency_key=uuid.uuid4(),
+                )
+                db.add(booking)
+                db.flush()
 
-        db.add(ReservationCourse(reservation_id=res.reservation_id, course_id=course.course_id,
-                                 course_role="main", duration_snapshot=course.duration_minutes,
-                                 price_snapshot=course.price, course_name_snapshot=course.name))
+                therapist_start = (booking_number * 3) % len(shop_therapists)
+                for person_index in range(1, number_of_people + 1):
+                    assigned_therapist = shop_therapists[
+                        (therapist_start + person_index - 1) % len(shop_therapists)
+                    ]
+                    reservation = Reservation(
+                        booking_id=booking.booking_id,
+                        person_index=person_index,
+                        therapist_id=assigned_therapist.therapist_id,
+                        start_time=start_t,
+                        end_time=end_t,
+                        status="assigned",
+                        assignment_source="auto",
+                    )
+                    db.add(reservation)
+                    db.flush()
+
+                    for course in selected_courses:
+                        db.add(ReservationCourse(
+                            reservation_id=reservation.reservation_id,
+                            course_id=course.course_id,
+                            course_role=course.course_type,
+                            duration_snapshot=course.duration_minutes,
+                            price_snapshot=course.price,
+                            course_name_snapshot=course.name,
+                        ))
     db.flush()
+    return booking_number
 
 def main():
     print("=== Seed dữ liệu mẫu ===")
@@ -246,7 +312,7 @@ def main():
         seed_shifts(db, shops, therapists)
         customers = seed_customers(db)
         seed_restrictions(db)
-        seed_bookings(db, shops, customers, therapists)
+        total_bookings = seed_bookings(db, shops, customers, therapists)
         db.commit()
 
     total_courses = sum(len(v) for v in COURSES.values())
@@ -257,8 +323,8 @@ def main():
     print(f"   - {total_therapists} therapist")
     print(f"   - {len(CUSTOMERS)} khách hàng")
     print(f"   - {len(RESTRICTIONS)} NG list")
-    print(f"   - {len(BOOKING_SAMPLES)} booking mẫu")
-    print(f"   - Ca làm: 6 ngày/tuần x 2 tuần")
+    print(f"   - {total_bookings} booking mẫu (có booking nhóm 2-3 người)")
+    print(f"   - Ca làm: 6 ngày/tuần x 3 tuần")
 
 if __name__ == "__main__":
     main()

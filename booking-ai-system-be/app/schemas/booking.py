@@ -47,6 +47,13 @@ class BookingUpdate(BaseModel):
     therapist_request: TherapistRequestInput | None = None
 
 
+class ReservationUpdateInput(BaseModel):
+    reservation_id: UUID | None = None
+    person_index: int = Field(..., ge=1, le=3)
+    therapist_id: UUID | None = None
+    courses: list[BookingCourseInput] = Field(..., min_length=1)
+
+
 # Huỷ booking — request body
 class BookingCancelInput(BaseModel):
     status: str = Field(..., pattern=r"^cancelled$")
@@ -61,6 +68,11 @@ class BookingPatchInput(BaseModel):
     start_time: time | None = None
     courses: list[BookingCourseInput] | None = None
     therapist_request: TherapistRequestInput | None = None
+    customer: CustomerInput | None = None
+    reservations: list[ReservationUpdateInput] | None = Field(
+        None, min_length=1, max_length=3
+    )
+    auto_assign_therapists: bool = False
 
 
 # Kiểm tra điều kiện đặt lịch — request body
@@ -90,6 +102,7 @@ class ReservationResponse(BaseModel):
     start_time: time
     end_time: time
     status: str
+    assignment_source: str = "auto"
     courses: list[ReservationCourseResponse] = []
 
 

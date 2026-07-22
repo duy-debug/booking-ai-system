@@ -44,7 +44,7 @@ export function SelectionLayer({
       onClick={handleCommit}
       onDoubleClick={handleClear}
       onKeyDown={(e) => { if (e.key === "Delete" || e.key === "Escape") handleClear(); }}
-      className="absolute z-10 rounded border-2 border-dashed border-blue-500 bg-blue-100/60 hover:bg-blue-100/80 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors cursor-pointer"
+      className="absolute z-[3] rounded border-2 border-dashed border-blue-500 bg-blue-100/60 hover:bg-blue-100/80 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors cursor-pointer"
       style={{ left: x, width: Math.max(w, MIN_SELECTION_WIDTH), top: 4, bottom: 4 }}
     >
       <span className="absolute top-0 left-1 text-[10px] text-blue-700 font-medium whitespace-nowrap pointer-events-none">

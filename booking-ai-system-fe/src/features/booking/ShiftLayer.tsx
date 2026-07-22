@@ -9,7 +9,7 @@ interface ShiftLayerProps {
 
 export function ShiftLayer({ shifts, range, pxPerMinute }: ShiftLayerProps) {
   return (
-    <div className="pointer-events-none absolute inset-0">
+    <div className="pointer-events-none absolute inset-0 z-0" data-layer="shifts">
       {shifts.map((s) => {
         const x = timeToX(s.startMinutes, range, pxPerMinute);
         const w = durationToWidth(s.endMinutes - s.startMinutes, pxPerMinute);

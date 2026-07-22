@@ -7,6 +7,7 @@ import { ROW_HEIGHT, type TimeStep } from "./schedule.theme";
 import { ResourceColumn } from "./ResourceColumn";
 import { ShiftLayer } from "./ShiftLayer";
 import { BookingLayer } from "./BookingLayer";
+import { CancelledBookingLayer } from "./CancelledBookingLayer";
 import { SelectionLayer, type Selection } from "./SelectionLayer";
 import { TimeGrid } from "./TimeGrid";
 import type { BookingViewModel, ResourceViewModel } from "./schedule.types";
@@ -26,6 +27,38 @@ interface ResourceRowProps {
   onInvalidSelection: () => void;
 }
 
+export function splitBookingsByCancellation(bookings: BookingViewModel[]) {
+  return {
+    cancelled: bookings.filter((booking) => booking.status === "cancelled"),
+    active: bookings.filter((booking) => booking.status !== "cancelled"),
+  };
+}
+
+export function isMinuteBlockedByBooking(
+  bookings: BookingViewModel[],
+  minute: number,
+) {
+  return bookings.some(
+    (booking) =>
+      booking.status !== "cancelled" &&
+      minute >= booking.startMinutes &&
+      minute < booking.endMinutes,
+  );
+}
+
+export function doesSelectionOverlapActiveBooking(
+  bookings: BookingViewModel[],
+  startMinutes: number,
+  endMinutes: number,
+) {
+  return bookings.some(
+    (booking) =>
+      booking.status !== "cancelled" &&
+      startMinutes < booking.endMinutes &&
+      endMinutes > booking.startMinutes,
+  );
+}
+
 const ResourceRowInner = memo(function ResourceRowInner({
   resource,
   bookings,
@@ -42,6 +75,7 @@ const ResourceRowInner = memo(function ResourceRowInner({
 }: ResourceRowProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const totalWidth = (range.end - range.start) * pxPerMinute;
+  const bookingLayers = splitBookingsByCancellation(bookings);
 
   const hasActiveShift = resource.shifts.some((s) => s.isActive);
   const hasAnyShift = resource.shifts.length > 0;
@@ -66,13 +100,8 @@ const ResourceRowInner = memo(function ResourceRowInner({
     );
     if (!inActiveShift) return;
 
-    // Don't create selection over an existing booking
-    const overBooking = bookings.some(
-      (b) => clickedMinutes >= b.startMinutes && clickedMinutes < b.endMinutes,
-    );
-    if (overBooking) return;
-
     const sel = createDefaultSelection(clickedMinutes, step, range.end, resource.therapistId);
+    if (doesSelectionOverlapActiveBooking(bookings, sel.startMinutes, sel.endMinutes)) return;
     onStartSelection(sel);
   }, [range, step, pxPerMinute, resource.therapistId, onStartSelection, resource.shifts, bookings, earliestSelectableMinutes, onInvalidSelection]);
 
@@ -102,7 +131,18 @@ const ResourceRowInner = memo(function ResourceRowInner({
             aria-hidden="true"
           />
         )}
-        <BookingLayer bookings={bookings} range={range} pxPerMinute={pxPerMinute} onSelect={onSelectBooking} />
+        <CancelledBookingLayer
+          bookings={bookingLayers.cancelled}
+          range={range}
+          pxPerMinute={pxPerMinute}
+          onSelect={onSelectBooking}
+        />
+        <BookingLayer
+          bookings={bookingLayers.active}
+          range={range}
+          pxPerMinute={pxPerMinute}
+          onSelect={onSelectBooking}
+        />
         <SelectionLayer
           selection={rowSelection}
           range={range}

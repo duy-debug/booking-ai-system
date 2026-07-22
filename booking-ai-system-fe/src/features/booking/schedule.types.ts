@@ -49,6 +49,7 @@ export interface AdminBookingDetailRaw {
     person_index: number;
     therapist: { therapist_id: UUID; name: string | null };
     courses: Array<{
+      course_id: UUID;
       course_name_snapshot: string;
       course_role: string;
       duration_snapshot: number;

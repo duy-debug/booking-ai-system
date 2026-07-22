@@ -100,6 +100,7 @@ def get_admin_booking(booking_id: str, db: Session = Depends(get_db)):
             },
             "courses": [
                 {
+                    "course_id": str(c.course_id),
                     "course_role": c.course_role,
                     "course_name_snapshot": c.course_name_snapshot,
                     "duration_snapshot": c.duration_snapshot,

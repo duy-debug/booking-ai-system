@@ -47,6 +47,7 @@ class ShiftRepository:
                 TherapistShift.is_active == True,
             )
             .options(joinedload(TherapistShift.therapist))
+            .order_by(TherapistShift.therapist_id, TherapistShift.shift_id)
         )
         if for_update:
             stmt = stmt.with_for_update(of=TherapistShift)

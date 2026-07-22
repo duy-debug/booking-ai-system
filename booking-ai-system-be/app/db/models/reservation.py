@@ -31,6 +31,9 @@ class Reservation(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(
         String(30), default="assigned", nullable=False  # assigned, ...
     )
+    assignment_source: Mapped[str] = mapped_column(
+        String(20), default="auto", nullable=False  # auto, specific
+    )
 
     booking = relationship("Booking", back_populates="reservations")
     therapist = relationship("Therapist", back_populates="reservations")

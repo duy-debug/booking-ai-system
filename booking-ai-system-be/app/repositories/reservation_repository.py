@@ -3,7 +3,7 @@ from datetime import date, time
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.db.models.booking import Booking
 from app.db.models.reservation import Reservation
@@ -58,6 +58,7 @@ class ReservationRepository:
         booking_date: date,
         start_time: time,
         end_time: time,
+        exclude_booking_id: UUID | None = None,
     ) -> bool:
         stmt = (
             select(Reservation.reservation_id)
@@ -69,9 +70,35 @@ class ReservationRepository:
                 Reservation.start_time < end_time,
                 Reservation.end_time > start_time,
             )
-            .limit(1)
         )
+        if exclude_booking_id is not None:
+            stmt = stmt.where(Booking.booking_id != exclude_booking_id)
+        stmt = stmt.limit(1)
         return self.session.scalar(stmt) is not None
+
+    def find_overlaps_for_update(
+        self,
+        therapist_id: UUID,
+        booking_date: date,
+        start_time: time,
+        end_time: time,
+    ) -> list[Reservation]:
+        """Lock active reservations occupying a therapist in an interval."""
+        stmt = (
+            select(Reservation)
+            .join(Booking)
+            .where(
+                Reservation.therapist_id == therapist_id,
+                Booking.booking_date == booking_date,
+                Booking.status != "cancelled",
+                Reservation.start_time < end_time,
+                Reservation.end_time > start_time,
+            )
+            .options(joinedload(Reservation.booking))
+            .order_by(Reservation.reservation_id)
+            .with_for_update(of=Reservation)
+        )
+        return list(self.session.scalars(stmt).all())
 
     # Kiểm tra xung đột slot — có reservation nào trong khung giờ không
     def exists_slot_conflict(

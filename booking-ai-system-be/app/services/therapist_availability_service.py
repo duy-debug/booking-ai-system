@@ -46,6 +46,7 @@ class TherapistAvailabilityService:
         requested_gender: str | None = None,
         lock_shifts: bool = False,
         context: AvailabilityDayContext | None = None,
+        exclude_booking_id: UUID | None = None,
     ) -> TherapistAvailabilityResult:
         if context is not None:
             return self._evaluate_context(
@@ -82,8 +83,13 @@ class TherapistAvailabilityService:
             ):
                 blocked_count += 1
                 continue
+            overlap_kwargs = (
+                {"exclude_booking_id": exclude_booking_id}
+                if exclude_booking_id is not None
+                else {}
+            )
             if self.reservation_repo.exists_overlap(
-                therapist_id, booking_date, start_time, end_time
+                therapist_id, booking_date, start_time, end_time, **overlap_kwargs
             ):
                 busy_count += 1
                 continue

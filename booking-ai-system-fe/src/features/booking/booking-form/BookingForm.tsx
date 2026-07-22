@@ -18,6 +18,7 @@ import {
   bookingUpdateFormSchema,
   toCreatePayload,
   toUpdatePayload,
+  shouldAutoAssignTherapists,
   type BookingFormInitial,
   type BookingFormValues,
 } from "./booking-form.schema";
@@ -26,7 +27,7 @@ import {
   BookingBasicInfoRow,
   BookingCustomerRow,
   BookingCourseMatrix,
-  BookingEditDetails,
+  BookingReservationEditor,
   BookingTherapistRow,
 } from "./booking-form-sections";
 import type { AdminBookingDetailRaw } from "../schedule.types";
@@ -98,6 +99,12 @@ export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(funct
   editDetail,
 }: BookingFormProps, ref) {
   const isEdit = initial.mode === "edit";
+  const groupMainCourseId = editDetail?.reservations[0]?.courses.find(
+    (course) => course.course_role === "main",
+  )?.course_id ?? "";
+  const groupAddonCourseIds = editDetail?.reservations[0]?.courses
+    .filter((course) => course.course_role === "addon")
+    .map((course) => course.course_id) ?? [];
 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(isEdit ? bookingUpdateFormSchema : bookingFormSchema),
@@ -113,6 +120,14 @@ export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(funct
       therapistRequestType: initial.therapistId ? "specific" : "none",
       requestedTherapistId: initial.therapistId ?? "",
       requestedGender: undefined,
+      reservations: editDetail?.reservations.map((reservation) => ({
+        reservationId: reservation.reservation_id,
+        personIndex: reservation.person_index,
+        therapistId: reservation.therapist.therapist_id,
+        mainCourseId: groupMainCourseId,
+        addonCourseIds: [...groupAddonCourseIds],
+      })) ?? [],
+      autoAssignTherapists: false,
     },
   });
 
@@ -143,6 +158,7 @@ export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(funct
   const numberOfPeople = form.watch("numberOfPeople");
   const mainCourseId = form.watch("mainCourseId");
   const addonCourseIds = form.watch("addonCourseIds");
+  const reservationEdits = form.watch("reservations");
   const timezone = initial.timezone ?? SHOP_TIMEZONE;
   const minimumBookingAdvanceMinutes = initial.minimumBookingAdvanceMinutes ?? 15;
   const earliestSelectableMinutes = isEdit
@@ -176,18 +192,27 @@ export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(funct
     const selectedCourses = courses.filter(
       (course) => course.id === mainCourseId || addonCourseIds.includes(course.id),
     );
+    const editedPeople = reservationEdits.map((reservation) => {
+      const selected = courses.filter(
+        (course) => course.id === reservation.mainCourseId || reservation.addonCourseIds.includes(course.id),
+      );
+      return {
+        duration: selected.reduce((total, course) => total + course.durationMinutes, 0),
+        price: selected.reduce((total, course) => total + course.price, 0),
+      };
+    });
     return {
       bookingDate,
       startTime,
       numberOfPeople,
       durationMinutes: isEdit
-        ? (initial.durationMinutes ?? 0)
+        ? Math.max(0, ...editedPeople.map((person) => person.duration))
         : selectedCourses.reduce((total, course) => total + course.durationMinutes, 0),
       totalPrice: isEdit
-        ? (initial.totalPrice ?? 0)
+        ? editedPeople.reduce((total, person) => total + person.price, 0)
         : selectedCourses.reduce((total, course) => total + course.price, 0),
     };
-  }, [addonCourseIds, bookingDate, courses, initial.durationMinutes, initial.totalPrice, isEdit, mainCourseId, numberOfPeople, startTime]);
+  }, [addonCourseIds, bookingDate, courses, isEdit, mainCourseId, numberOfPeople, reservationEdits, startTime]);
   const lastEmittedSummaryRef = useRef<BookingFormSummary | null>(null);
 
   useImperativeHandle(ref, () => ({
@@ -225,6 +250,54 @@ export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(funct
     lastEmittedSummaryRef.current = summary;
     onSummaryChange?.(summary);
   }, [onSummaryChange, summary]);
+
+  useEffect(() => {
+    if (!isEdit) return;
+    const current = form.getValues("reservations");
+    const autoAssignTherapists = shouldAutoAssignTherapists(
+      initial.numberOfPeople ?? 1,
+      numberOfPeople,
+    );
+    if (form.getValues("autoAssignTherapists") !== autoAssignTherapists) {
+      form.setValue("autoAssignTherapists", autoAssignTherapists, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+    const next = current.slice(0, numberOfPeople).map((reservation) => ({
+      ...reservation,
+      addonCourseIds: [...reservation.addonCourseIds],
+    }));
+    const groupCourses = current[0] ?? {
+      mainCourseId: "",
+      addonCourseIds: [],
+    };
+    while (next.length < numberOfPeople) {
+      next.push({
+        reservationId: undefined,
+        personIndex: next.length + 1,
+        therapistId: "",
+        mainCourseId: groupCourses.mainCourseId,
+        addonCourseIds: [...groupCourses.addonCourseIds],
+      });
+    }
+    if (autoAssignTherapists) {
+      next.forEach((reservation) => {
+        reservation.therapistId = "";
+      });
+    } else if (numberOfPeople === 1 && !next[0]?.therapistId) {
+      next[0].therapistId = editDetail?.reservations[0]?.therapist.therapist_id ?? "";
+    }
+    const reservationsChanged =
+      current.length !== next.length ||
+      current.some((reservation, index) => reservation.therapistId !== next[index]?.therapistId);
+    if (!reservationsChanged) return;
+    form.setValue(
+      "reservations",
+      next.map((reservation, index) => ({ ...reservation, personIndex: index + 1 })),
+      { shouldDirty: true, shouldValidate: true },
+    );
+  }, [editDetail?.reservations, form, initial.numberOfPeople, isEdit, numberOfPeople]);
 
   const applyApiErrors = (err: unknown) => {
     if (err instanceof ApiError) {
@@ -305,10 +378,27 @@ export const BookingForm = forwardRef<BookingFormHandle, BookingFormProps>(funct
           timeOptions={timeOptions}
           bookingCode={isEdit ? initial.bookingId : undefined}
           timeNotice={!selectedTimeValidation.valid ? selectedTimeValidation.message : undefined}
-          numberOfPeopleReadOnly={isEdit}
+          numberOfPeopleReadOnly={false}
         />
 
-        {isEdit && editDetail && <BookingEditDetails detail={editDetail} />}
+        {isEdit && (
+          <>
+            <BookingCustomerRow
+              eligibility={eligibility}
+              eligibilityLoading={eligibilityMut.isPending}
+              onCheck={() => {
+                const phone = form.getValues("customerPhone");
+                if (phone) {
+                  eligibilityMut
+                    .mutateAsync({ phone, shop_id: initial.shopId })
+                    .then(setEligibility)
+                    .catch(() => setEligibility(null));
+                }
+              }}
+            />
+            <BookingReservationEditor courses={courses} therapists={therapists} />
+          </>
+        )}
 
         {!isEdit && (
           <>

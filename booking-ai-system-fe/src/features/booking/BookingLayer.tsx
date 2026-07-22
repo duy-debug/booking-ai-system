@@ -34,7 +34,7 @@ const BookingBlock = memo(function BookingBlock({
       onClick={handleClick}
       title={`${booking.customerName ?? booking.customerPhone} — ${booking.courseNames.join(", ")} — ${style.label}`}
       aria-label={`Booking: ${booking.customerName ?? booking.customerPhone}, ${booking.courseNames.join(", ")}, ${absoluteMinutesToHHMM(booking.startMinutes)}-${absoluteMinutesToHHMM(booking.endMinutes)}, ${style.label}`}
-      className={`absolute overflow-hidden rounded border-l-2 ${style.border} ${style.bg} hover:ring-2 hover:ring-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow cursor-pointer`}
+      className={`pointer-events-auto absolute overflow-hidden rounded border-l-2 ${style.border} ${style.bg} hover:ring-2 hover:ring-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow cursor-pointer`}
       style={{ left: x, width: Math.max(w, MIN_BOOKING_WIDTH), top: 2, bottom: 2 }}
     >
       {narrow ? (
@@ -63,8 +63,8 @@ const BookingBlock = memo(function BookingBlock({
 
 export function BookingLayer({ bookings, range, pxPerMinute, onSelect }: BookingLayerProps) {
   return (
-    <div className="absolute inset-0">
-      {bookings.map((b) => {
+    <div className="pointer-events-none absolute inset-0 z-[2]" data-layer="active-bookings">
+      {bookings.filter((booking) => booking.status !== "cancelled").map((b) => {
         const x = timeToX(b.startMinutes, range, pxPerMinute);
         const w = durationToWidth(b.endMinutes - b.startMinutes, pxPerMinute);
         const style = STATUS_STYLES[b.status] ?? STATUS_STYLES.other;

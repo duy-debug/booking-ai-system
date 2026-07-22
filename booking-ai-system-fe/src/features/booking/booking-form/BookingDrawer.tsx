@@ -296,7 +296,7 @@ function BookingModalInner({
               <span className="max-w-[420px] truncate font-medium text-red-600">{formError}</span>
             )}
             {isEdit ? (
-              <span className="text-zinc-500">Chỉ cập nhật ngày và giờ</span>
+              <span className="text-zinc-500">Cập nhật toàn bộ nhóm booking</span>
             ) : availabilityLoading ? (
               <span className="inline-flex items-center gap-1.5 text-zinc-500">
                 <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />

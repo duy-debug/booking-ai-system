@@ -207,6 +207,118 @@ export function BookingEditDetails({
   );
 }
 
+export function BookingReservationEditor({
+  courses,
+  therapists,
+}: {
+  courses: CourseUiModel[];
+  therapists: TherapistUiModel[];
+}) {
+  const { register, setValue, formState: { errors } } = useFormContext<BookingFormValues>();
+  const reservations = (useWatch({ name: "reservations" }) ?? []) as BookingFormValues["reservations"];
+  const autoAssignTherapists = useWatch({ name: "autoAssignTherapists" });
+  const mainCourses = courses.filter((course) => course.courseType === "main");
+  const addonCourses = courses.filter((course) => course.courseType === "addon");
+  const rootError = errors.reservations?.message;
+  const applyMainCourseToGroup = (courseId: string) => {
+    reservations.forEach((_, index) => {
+      setValue(`reservations.${index}.mainCourseId`, courseId, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    });
+  };
+  const applyAddonCoursesToGroup = (courseIds: string[]) => {
+    reservations.forEach((_, index) => {
+      setValue(`reservations.${index}.addonCourseIds`, [...courseIds], {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    });
+  };
+
+  return (
+    <WorkspaceRow label="Từng người" className="border-b">
+      <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+        {reservations.map((reservation, index) => (
+          <section key={reservation.reservationId ?? `new-${index}`} className="rounded border border-zinc-200 bg-zinc-50 p-3">
+            <div className="mb-3 flex items-center justify-between">
+              <strong className="text-xs text-zinc-800">Người {index + 1}</strong>
+              <span className="text-[10px] text-zinc-400">
+                {reservation.reservationId ? `#${reservation.reservationId.slice(0, 8)}` : "Mới"}
+              </span>
+            </div>
+            <input type="hidden" {...register(`reservations.${index}.personIndex`, { valueAsNumber: true })} />
+
+            <label className={fieldLabelClass}>Therapist</label>
+            {autoAssignTherapists ? (
+              <div className="mb-3 flex h-8 items-center rounded border border-blue-200 bg-blue-50 px-2 text-[11px] font-medium text-blue-700">
+                Tự động phân công therapist khả dụng
+              </div>
+            ) : (
+              <>
+                <select className={`${inputClass} mb-3 w-full`} {...register(`reservations.${index}.therapistId`)}>
+                  <option value="">Chọn therapist</option>
+                  {therapists.map((therapist) => (
+                    <option key={therapist.id} value={therapist.id}>
+                      {therapist.name} · {therapist.gender === "male" ? "Nam" : "Nữ"}
+                    </option>
+                  ))}
+                </select>
+                {errors.reservations?.[index]?.therapistId?.message && (
+                  <span className="mb-2 block text-[11px] text-red-600">{errors.reservations[index]?.therapistId?.message}</span>
+                )}
+              </>
+            )}
+
+            <label className={fieldLabelClass}>Course chính · áp dụng toàn nhóm</label>
+            <select
+              className={`${inputClass} mb-3 w-full`}
+              value={reservation.mainCourseId}
+              onChange={(event) => applyMainCourseToGroup(event.target.value)}
+            >
+              <option value="">Chọn course chính</option>
+              {mainCourses.map((course) => (
+                <option key={course.id} value={course.id}>
+                  {course.name} · {course.durationMinutes} phút
+                </option>
+              ))}
+            </select>
+            {errors.reservations?.[index]?.mainCourseId?.message && (
+              <span className="mb-2 block text-[11px] text-red-600">{errors.reservations[index]?.mainCourseId?.message}</span>
+            )}
+
+            <span className={fieldLabelClass}>Course thêm · áp dụng toàn nhóm</span>
+            <div className="flex flex-wrap gap-1.5">
+              {addonCourses.map((course) => {
+                const selected = reservation.addonCourseIds.includes(course.id);
+                return (
+                  <button
+                    key={course.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => {
+                      const next = selected
+                        ? reservation.addonCourseIds.filter((id) => id !== course.id)
+                        : [...reservation.addonCourseIds, course.id];
+                      applyAddonCoursesToGroup(next);
+                    }}
+                    className={`${chipClass} ${selected ? "border-blue-700 bg-blue-600 text-white" : "border-zinc-300 bg-white text-zinc-700"}`}
+                  >
+                    {course.name}
+                  </button>
+                );
+              })}
+              {addonCourses.length === 0 && <span className="text-[11px] text-zinc-400">Không có course thêm</span>}
+            </div>
+          </section>
+        ))}
+      </div>
+      {rootError && <span className="mt-2 block text-[11px] text-red-600">{rootError}</span>}
+    </WorkspaceRow>
+  );
+}
+
 export function BookingCustomerRow({
   eligibility,
   eligibilityLoading,
