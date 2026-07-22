@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime, time
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -47,3 +47,27 @@ class TherapistBrief(BaseModel):
 
     therapist_id: UUID
     name: str
+
+
+# Ca làm việc rút gọn trong lịch cá nhân của therapist.
+class TherapistScheduleShiftResponse(BaseModel):
+    start_time: time | None
+    end_time: time | None
+
+
+# Reservation được hiển thị trong lịch cá nhân của therapist.
+class TherapistScheduleReservationResponse(BaseModel):
+    reservation_id: UUID
+    booking_id: UUID
+    start_time: time
+    end_time: time
+    course_names: list[str]
+    booking_status: str | None
+
+
+# Lịch làm việc và các reservation của một therapist trong ngày.
+class TherapistScheduleResponse(BaseModel):
+    therapist_id: UUID
+    date: date
+    shift: TherapistScheduleShiftResponse | None
+    reservations: list[TherapistScheduleReservationResponse]

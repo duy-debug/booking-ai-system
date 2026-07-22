@@ -7,13 +7,17 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, parse_uuid
 from app.schemas.therapist_shift import ShiftCreate, ShiftResponse, ShiftUpdate
+from app.schemas.common import CollectionResponse, DataResponse
 from app.services.therapist_shift_service import TherapistShiftService
 
 router = APIRouter(prefix="/api/admin", tags=["admin-shifts"], dependencies=[Depends(require_admin)])
 
 
 # Danh sách ca làm việc trong shop — lọc theo ngày, therapist, trạng thái
-@router.get("/shops/{shop_id}/therapist-shifts")
+@router.get(
+    "/shops/{shop_id}/therapist-shifts",
+    response_model=CollectionResponse[ShiftResponse],
+)
 def list_shifts(
     shop_id: str,
     work_date: str | None = Query(None),
@@ -36,30 +40,40 @@ def list_shifts(
 
     service = TherapistShiftService(db)
     shifts = service.list(uid, work_date=parsed_date, therapist_id=parsed_tid, is_active=is_active)
-    return {"data": [ShiftResponse.model_validate(s).model_dump(mode="json") for s in shifts]}
+    return CollectionResponse(data=[ShiftResponse.model_validate(shift) for shift in shifts])
 
 
 # Tạo ca làm việc mới — kiểm tra therapist thuộc shop, không trùng giờ
-@router.post("/therapist-shifts", status_code=201)
+@router.post(
+    "/therapist-shifts",
+    status_code=201,
+    response_model=DataResponse[ShiftResponse],
+)
 def create_shift(body: ShiftCreate, db: Session = Depends(get_db)):
     service = TherapistShiftService(db)
     shift = service.create(body)
-    return {"data": ShiftResponse.model_validate(shift).model_dump(mode="json")}
+    return DataResponse(data=ShiftResponse.model_validate(shift))
 
 
 # Chi tiết ca làm việc theo ID
-@router.get("/therapist-shifts/{shift_id}")
+@router.get(
+    "/therapist-shifts/{shift_id}",
+    response_model=DataResponse[ShiftResponse],
+)
 def get_shift(shift_id: str, db: Session = Depends(get_db)):
     uid = parse_uuid(shift_id, "shift")
     service = TherapistShiftService(db)
     shift = service.get(uid)
-    return {"data": ShiftResponse.model_validate(shift).model_dump(mode="json")}
+    return DataResponse(data=ShiftResponse.model_validate(shift))
 
 
 # Cập nhật ca làm việc — kiểm tra overlap khi thay đổi giờ
-@router.patch("/therapist-shifts/{shift_id}")
+@router.patch(
+    "/therapist-shifts/{shift_id}",
+    response_model=DataResponse[ShiftResponse],
+)
 def update_shift(shift_id: str, body: ShiftUpdate, db: Session = Depends(get_db)):
     uid = parse_uuid(shift_id, "shift")
     service = TherapistShiftService(db)
     shift = service.update(uid, body)
-    return {"data": ShiftResponse.model_validate(shift).model_dump(mode="json")}
+    return DataResponse(data=ShiftResponse.model_validate(shift))

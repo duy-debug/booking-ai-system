@@ -1,5 +1,5 @@
-// Raw DTO cho endpoint tổng hợp GET /api/admin/booking (1 request thay N+1).
-// Căn cứ: app/api/admin/booking.py, app/services/booking_service.py.
+// Raw DTO cho endpoint tổng hợp GET /api/admin/schedule (1 request thay N+1).
+// Căn cứ: app/api/admin/schedule.py, app/services/schedule_service.py.
 import type { UUID, ISODate, BookingStatus } from "@/shared/types/common";
 
 export interface ScheduleShopRaw {

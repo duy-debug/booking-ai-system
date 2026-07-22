@@ -184,5 +184,6 @@ export function toBookingListUi(raw: AdminBookingListItemRaw): BookingListUi {
 export const bookingApi = {
   list: "/api/admin/bookings",
   detail: (id: UUID) => `/api/admin/bookings/${id}`,
-  cancel: (id: UUID) => `/api/bookings/${id}`,
+  update: (id: UUID) => `/api/admin/bookings/${id}`,
+  cancel: (id: UUID) => `/api/admin/bookings/${id}`,
 };

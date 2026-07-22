@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
+from app.schemas.common import ApplicationInfoResponse, HealthResponse
 from app.api.admin.shops import router as admin_shops_router
 from app.api.admin.courses import router as admin_courses_router
 from app.api.admin.therapists import router as admin_therapists_router
@@ -15,9 +16,9 @@ from app.api.public.shops import router as public_shops_router
 from app.api.public.available_slots import router as public_slots_router
 from app.api.public.booking_eligibility import router as public_eligibility_router
 from app.api.public.bookings import router as public_bookings_router
-from app.api.public.therapist_booking import router as therapist_booking_router
+from app.api.public.therapist_schedule import router as therapist_schedule_router
 from app.api.admin.bookings import router as admin_bookings_router
-from app.api.admin.booking import router as admin_booking_router
+from app.api.admin.schedule import router as admin_schedule_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -88,18 +89,18 @@ app.include_router(public_shops_router)
 app.include_router(public_slots_router)
 app.include_router(public_eligibility_router)
 app.include_router(public_bookings_router)
-app.include_router(therapist_booking_router)
+app.include_router(therapist_schedule_router)
 app.include_router(admin_bookings_router)
-app.include_router(admin_booking_router)
+app.include_router(admin_schedule_router)
 
 
 # Trả về tên và phiên bản ứng dụng để xác nhận nhanh backend đang hoạt động.
-@app.get("/")
+@app.get("/", response_model=ApplicationInfoResponse)
 def root():
     return {"message": f"{settings.APP_NAME} v{settings.APP_VERSION}"}
 
 
 # Cung cấp endpoint health-check tối giản cho Docker, CI hoặc hệ thống giám sát.
-@app.get("/health")
+@app.get("/health", response_model=HealthResponse)
 def health():
     return {"status": "ok"}

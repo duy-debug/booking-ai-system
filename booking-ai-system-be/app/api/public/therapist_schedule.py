@@ -6,14 +6,16 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.exceptions import AppError
-from app.services import TherapistBookingService
+from app.services import TherapistScheduleService
+from app.schemas.common import DataResponse
+from app.schemas.therapist import TherapistScheduleResponse
 
 
-router = APIRouter(prefix="/api/therapists", tags=["therapist"])
+router = APIRouter(prefix="/api/therapists", tags=["therapist-schedule"])
 
 
 # Lịch làm việc của therapist theo ngày — ca làm việc + booking đã nhận
-@router.get("/me/schedule")
+@router.get("/me/schedule", response_model=DataResponse[TherapistScheduleResponse])
 def get_my_schedule(
     date_param: str = Query(..., alias="date"),
     therapist_id: str | None = Query(None),
@@ -32,6 +34,6 @@ def get_my_schedule(
     except ValueError:
         raise AppError(400, code="INVALID_THERAPIST_ID", detail="therapist_id khong dung format UUID")
 
-    service = TherapistBookingService(db)
+    service = TherapistScheduleService(db)
     result = service.get_schedule(uid, d)
-    return {"data": result}
+    return DataResponse(data=TherapistScheduleResponse.model_validate(result))

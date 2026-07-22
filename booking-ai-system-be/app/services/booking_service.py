@@ -2,11 +2,10 @@ from datetime import date, datetime, time, timedelta
 from random import SystemRandom
 from uuid import UUID
 
-# Service tổng hợp lịch theo ngày nghiệp vụ (resource timeline).
-# Quản lý orchestration + transaction, KHÔNG chứa business rule phân tán (nguyên tắc 3).
+# Command service cho nghiệp vụ tạo, cập nhật, hủy và tái cân bằng therapist của booking.
+# Service sở hữu transaction; mọi thao tác dữ liệu được ủy quyền cho repository.
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.core.exceptions import AppError
 from app.db.models.booking import Booking
 from app.db.models.customer import Customer
@@ -25,28 +24,12 @@ from app.schemas.booking import (
     BookingCreate,
     BookingPatchInput,
 )
+from app.mappers.booking_mapper import booking_to_detail
 from app.services.booking_time import validate_booking_start
 from app.services.therapist_availability_service import TherapistAvailabilityService
 
 
 _secure_random = SystemRandom()
-
-
-# Chuẩn hóa đối tượng time hoặc chuỗi giờ về định dạng HH:MM dùng trong response API.
-def _to_hhmm(value) -> str:
-    if isinstance(value, time):
-        return value.strftime("%H:%M")
-    return str(value)
-
-
-# Xác định một khoảng giờ có đi qua nửa đêm bằng cách so sánh tổng số phút đầu và cuối.
-def _spans_midnight(start: str, end: str) -> bool:
-    try:
-        sh, sm = (int(x) for x in start.split(":"))
-        eh, em = (int(x) for x in end.split(":"))
-    except ValueError:
-        return False
-    return (eh * 60 + em) < (sh * 60 + sm)
 
 
 # Cộng số phút vào một thời điểm và tự quay vòng sang ngày mới nếu vượt quá 24 giờ.
@@ -57,67 +40,14 @@ def _add_minutes_to_time(t: time, minutes: int) -> time:
 
 # Chuyển Booking cùng customer, reservation và course snapshot thành cấu trúc response chi tiết.
 def _booking_to_detail(booking: Booking) -> dict:
-    res_list = []
-    for res in booking.reservations:
-        courses = [
-            {
-                "course_id": str(c.course_id),
-                "course_role": c.course_role,
-                "course_name_snapshot": c.course_name_snapshot,
-                "duration_snapshot": c.duration_snapshot,
-                "price_snapshot": float(c.price_snapshot),
-            }
-            for c in res.reservation_courses
-        ]
-        res_list.append({
-            "reservation_id": str(res.reservation_id),
-            "person_index": res.person_index,
-            "therapist_id": str(res.therapist_id),
-            "therapist_name": res.therapist.name if res.therapist else None,
-            "start_time": _to_hhmm(res.start_time),
-            "end_time": _to_hhmm(res.end_time),
-            "status": res.status,
-            "assignment_source": getattr(res, "assignment_source", "auto"),
-            "spans_midnight": _spans_midnight(
-                _to_hhmm(res.start_time), _to_hhmm(res.end_time)
-            ),
-            "courses": courses,
-        })
-    return {
-        "booking_id": str(booking.booking_id),
-        "pos_booking_code": booking.pos_booking_code,
-        "shop_id": str(booking.shop_id),
-        "customer": {
-            "customer_id": str(booking.customer.customer_id) if booking.customer else None,
-            "phone": booking.customer.phone if booking.customer else None,
-            "name": booking.customer.name if booking.customer else None,
-        },
-        "booking_date": booking.booking_date.isoformat(),
-        "start_time": _to_hhmm(booking.start_time),
-        "end_time": _to_hhmm(booking.end_time),
-        "number_of_people": booking.number_of_people,
-        "total_duration_minutes": booking.total_duration_minutes,
-        "status": booking.status,
-        "therapist_request_type": booking.therapist_request_type,
-        "requested_therapist_id": (
-            str(booking.requested_therapist_id) if booking.requested_therapist_id else None
-        ),
-        "cancel_reason": booking.cancel_reason,
-        "cancelled_at": booking.cancelled_at.isoformat() if booking.cancelled_at else None,
-        "created_at": booking.created_at.isoformat() if booking.created_at else None,
-        "updated_at": booking.updated_at.isoformat() if booking.updated_at else None,
-        "spans_midnight": _spans_midnight(
-            _to_hhmm(booking.start_time), _to_hhmm(booking.end_time)
-        ),
-        "reservations": res_list,
-    }
+    return booking_to_detail(booking)
 
 
 class BookingService:
     # Khởi tạo với session và repository
     def __init__(self, session: Session):
         self.session = session
-        self.schedule_repo = BookingRepository(session)
+        self.booking_repo = BookingRepository(session)
         self.shop_repo = ShopRepository(session)
         self.course_repo = CourseRepository(session)
         self.customer_repo = CustomerRepository(session)
@@ -160,7 +90,7 @@ class BookingService:
         validate_booking_start(body.booking_date, body.start_time)
 
         # Kiểm tra idempotency key trùng
-        existing = self.schedule_repo.find_by_idempotency_key(idempotency_key)
+        existing = self.booking_repo.find_by_idempotency_key(idempotency_key)
         if existing:
             raise AppError(409, code="IDEMPOTENCY_CONFLICT",
                            detail="Idempotency-Key đã tồn tại")
@@ -174,7 +104,7 @@ class BookingService:
             ))
         elif body.customer.name and customer.name != body.customer.name:
             customer.name = body.customer.name
-            self.session.flush()
+            self.customer_repo.save(customer)
 
         # Validate courses + tính tổng thời lượng
         main_course = None
@@ -249,7 +179,7 @@ class BookingService:
             ),
             idempotency_key=idempotency_key,
         )
-        self.schedule_repo.save(booking)
+        self.booking_repo.save(booking)
 
         # Tạo reservation cho mỗi người
         if len(therapist_ids) != len(set(therapist_ids)):
@@ -281,16 +211,9 @@ class BookingService:
                     duration_snapshot=course.duration_minutes,
                     price_snapshot=course.price,
                 )
-                self.session.add(snap)
+                self.reservation_repo.save_course(snap)
 
-        self.session.flush()
-        return _booking_to_detail(booking)
-
-    # ── Lấy chi tiết booking ──────────────────────────────────────────
-    def get(self, booking_id: UUID) -> dict:
-        booking = self.schedule_repo.find_by_id(booking_id)
-        if not booking:
-            raise AppError(404, code="BOOKING_NOT_FOUND", detail="Không tìm thấy booking")
+        self.booking_repo.save(booking)
         return _booking_to_detail(booking)
 
     # ── Cập nhật booking ──────────────────────────────────────────────
@@ -305,7 +228,7 @@ class BookingService:
 
     # Điều phối cập nhật hoặc hủy booking, sau đó chuyển sang luồng cập nhật nhóm khi payload có reservations.
     def _update(self, booking_id: UUID, body: BookingPatchInput) -> dict:
-        booking = self.schedule_repo.find_by_id(booking_id)
+        booking = self.booking_repo.find_by_id(booking_id)
         if not booking:
             raise AppError(404, code="BOOKING_NOT_FOUND", detail="Không tìm thấy booking")
 
@@ -314,7 +237,7 @@ class BookingService:
             booking.status = "cancelled"
             booking.cancel_reason = body.cancel_reason
             booking.cancelled_at = datetime.now()
-            self.session.flush()
+            self.booking_repo.save(booking)
             return _booking_to_detail(booking)
 
         if getattr(body, "reservations", None) is not None:
@@ -337,7 +260,7 @@ class BookingService:
                 reservation.start_time = body.start_time
                 reservation.end_time = booking.end_time
 
-        self.session.flush()
+        self.booking_repo.save(booking)
         return _booking_to_detail(booking)
 
     # Cập nhật toàn bộ booking nhóm theo reservation_id và đồng bộ customer, course, therapist lẫn thời gian.
@@ -528,7 +451,7 @@ class BookingService:
         for reservation_id, reservation in list(existing.items()):
             if reservation_id not in kept_ids:
                 booking.reservations.remove(reservation)
-                self.session.delete(reservation)
+                self.reservation_repo.delete(reservation)
 
         durations = []
         for item, course_rows, duration, end_time, therapist_changed in prepared:
@@ -581,7 +504,7 @@ class BookingService:
         booking.therapist_request_type = "specific" if len(items) == 1 else "none"
         booking.requested_therapist_id = items[0].therapist_id if len(items) == 1 else None
         booking.requested_gender = None
-        self.session.flush()
+        self.booking_repo.save(booking)
         booking.reservations.sort(key=lambda reservation: reservation.person_index)
         return _booking_to_detail(booking)
 
@@ -734,7 +657,7 @@ class BookingService:
             )
 
         displaced.therapist_id = _secure_random.choice(candidates).therapist_id
-        self.session.flush()
+        self.reservation_repo.save(displaced)
         return requested_therapist_id
 
     # Tìm đủ therapist theo yêu cầu none, gender hoặc specific và từ chối khi số lượng không đáp ứng.
@@ -792,157 +715,3 @@ class BookingService:
                 detail="Mỗi người trong booking nhóm phải có therapist khác nhau.",
             )
         return therapist_ids
-
-    # Lấy toàn bộ dữ liệu timeline trong một ngày nghiệp vụ, gom 1 request.
-    def get_schedule(
-        self,
-        shop_id,
-        schedule_date: date,
-        view_from: str | None = None,
-        view_to: str | None = None,
-    ) -> dict:
-        shop = self.shop_repo.find_by_id(shop_id)
-        if not shop:
-            raise AppError(404, code="SHOP_NOT_FOUND", detail="Khong tim thay shop")
-
-        therapists = self.schedule_repo.find_therapists_by_shop(shop_id)
-        shifts = self.schedule_repo.find_shifts(shop_id, schedule_date)
-        bookings = self.schedule_repo.find_bookings_with_reservations(
-            shop_id, schedule_date
-        )
-
-        # Khung giờ hoạt động (business hours) = min/max ca active trong ngày.
-        active_shifts = [s for s in shifts if s.is_active]
-        if active_shifts:
-            opens = min(_to_hhmm(s.start_time) for s in active_shifts)
-            closes = max(_to_hhmm(s.end_time) for s in active_shifts)
-        else:
-            opens = settings.BUSINESS_HOURS_OPEN
-            closes = settings.BUSINESS_HOURS_CLOSE
-        business_hours = {
-            "open": opens,
-            "close": closes,
-            "spans_midnight": _spans_midnight(opens, closes),
-        }
-
-        # Cửa sổ hiển thị (view window) do client truyền, mặc định = business hours.
-        v_from = view_from or opens
-        v_to = view_to or closes
-        view_window = {
-            "from": v_from,
-            "to": v_to,
-            "spans_midnight": _spans_midnight(v_from, v_to),
-        }
-
-        # Blocked ranges: ánh xạ các ca INACTIVE thành đoạn bị chặn của therapist.
-        # (Hiện tại DB chưa có bảng blocked_ranges riêng; dùng inactive shift thay thế.
-        #  Khuyến nghị: bổ sung bảng blocked_ranges trong migration sau.)
-        blocked_ranges = [
-            {
-                "therapist_id": str(s.therapist_id),
-                "therapist_name": s.therapist.name if s.therapist else None,
-                "start_time": _to_hhmm(s.start_time),
-                "end_time": _to_hhmm(s.end_time),
-                "spans_midnight": _spans_midnight(
-                    _to_hhmm(s.start_time), _to_hhmm(s.end_time)
-                ),
-                "reason": None,
-            }
-            for s in shifts
-            if not s.is_active
-        ]
-
-        therapist_list = [
-            {
-                "therapist_id": str(t.therapist_id),
-                "name": t.name,
-                "gender": t.gender,
-                "is_active": t.is_active,
-            }
-            for t in therapists
-        ]
-
-        shift_list = [
-            {
-                "shift_id": str(s.shift_id),
-                "therapist_id": str(s.therapist_id),
-                "therapist_name": s.therapist.name if s.therapist else None,
-                "start_time": _to_hhmm(s.start_time),
-                "end_time": _to_hhmm(s.end_time),
-                "is_active": s.is_active,
-                "spans_midnight": _spans_midnight(
-                    _to_hhmm(s.start_time), _to_hhmm(s.end_time)
-                ),
-            }
-            for s in shifts
-        ]
-
-        booking_list = []
-        statuses: set[str] = set()
-        for b in bookings:
-            statuses.add(b.status)
-            res_list = []
-            for res in b.reservations:
-                courses = [
-                    {
-                        "course_role": c.course_role,
-                        "course_name_snapshot": c.course_name_snapshot,
-                        "duration_snapshot": c.duration_snapshot,
-                        "price_snapshot": float(c.price_snapshot),
-                    }
-                    for c in res.reservation_courses
-                ]
-                res_list.append({
-                    "reservation_id": str(res.reservation_id),
-                    "person_index": res.person_index,
-                    "therapist_id": str(res.therapist_id),
-                    "therapist_name": res.therapist.name if res.therapist else None,
-                    "start_time": _to_hhmm(res.start_time),
-                    "end_time": _to_hhmm(res.end_time),
-                    "status": res.status,
-                    "assignment_source": getattr(res, "assignment_source", "auto"),
-                    "spans_midnight": _spans_midnight(
-                        _to_hhmm(res.start_time), _to_hhmm(res.end_time)
-                    ),
-                    "courses": courses,
-                })
-            booking_list.append({
-                "booking_id": str(b.booking_id),
-                "pos_booking_code": b.pos_booking_code,
-                "customer": {
-                    "customer_id": str(b.customer.customer_id) if b.customer else None,
-                    "phone": b.customer.phone if b.customer else None,
-                    "name": b.customer.name if b.customer else None,
-                },
-                "booking_date": b.booking_date.isoformat(),
-                "start_time": _to_hhmm(b.start_time),
-                "end_time": _to_hhmm(b.end_time),
-                "status": b.status,
-                "number_of_people": b.number_of_people,
-                "total_duration_minutes": b.total_duration_minutes,
-                "therapist_request_type": b.therapist_request_type,
-                "requested_therapist_id": (
-                    str(b.requested_therapist_id) if b.requested_therapist_id else None
-                ),
-                "spans_midnight": _spans_midnight(
-                    _to_hhmm(b.start_time), _to_hhmm(b.end_time)
-                ),
-                "reservations": res_list,
-            })
-
-        return {
-            "shop": {
-                "shop_id": str(shop.shop_id),
-                "name": shop.name,
-                "timezone": settings.SHOP_TIMEZONE,
-                "minimum_booking_advance_minutes": settings.MINIMUM_BOOKING_ADVANCE_MINUTES,
-                "business_hours": business_hours,
-            },
-            "date": schedule_date.isoformat(),
-            "view_window": view_window,
-            "therapists": therapist_list,
-            "shifts": shift_list,
-            "blocked_ranges": blocked_ranges,
-            "bookings": booking_list,
-            "booking_statuses": sorted(statuses),
-        }

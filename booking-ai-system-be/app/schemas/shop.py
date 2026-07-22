@@ -51,6 +51,18 @@ class PublicShopResponse(BaseModel):
     phone: str | None = None
 
 
+# Các đường dẫn liên quan giúp client điều hướng từ shop sang course và slot khả dụng.
+class PublicShopLinks(BaseModel):
+    self: str
+    courses: str
+    available_slots: str
+
+
+# Shop trong danh sách public kèm HATEOAS links.
+class PublicShopListResponse(PublicShopResponse):
+    links: PublicShopLinks
+
+
 # Shop dạng rút gọn — dùng trong nesting
 class ShopBrief(BaseModel):
     model_config = ConfigDict(from_attributes=True)

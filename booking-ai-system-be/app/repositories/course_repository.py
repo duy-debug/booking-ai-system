@@ -53,3 +53,8 @@ class CourseRepository:
         self.session.add(course)
         self.session.flush()
         return course
+
+    # Làm mới entity từ database sau commit để lấy timestamp và giá trị do database sinh.
+    def refresh(self, course: Course) -> Course:
+        self.session.refresh(course)
+        return course

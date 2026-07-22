@@ -36,7 +36,7 @@ function toShiftEndMinutes(endTime: string, spansMidnight: boolean): number {
   return parseTimeToMinutes(endTime);
 }
 
-// Map response tổng hợp GET /api/admin/booking -> ScheduleViewModel.
+// Map response tổng hợp GET /api/admin/schedule -> ScheduleViewModel.
 export function toScheduleViewModel(
   raw: ScheduleResponseRaw,
   timeline: TimeRange,

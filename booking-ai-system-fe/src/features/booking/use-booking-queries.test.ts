@@ -26,14 +26,13 @@ describe("cancelBooking", () => {
       cancelBooking({ id: "booking-id", cancelReason: "Hủy từ admin" }),
     ).resolves.toEqual({ booking_id: "booking-id", status: "cancelled" });
 
-    expect(apiClient.patch).toHaveBeenCalledWith("/api/bookings/booking-id", {
+    expect(apiClient.patch).toHaveBeenCalledWith("/api/admin/bookings/booking-id", {
       status: "cancelled",
       cancel_reason: "Hủy từ admin",
     });
   });
 
   it("does not point cancellation at the read-only admin detail route", () => {
-    expect(bookingApi.cancel("booking-id")).toBe("/api/bookings/booking-id");
-    expect(bookingApi.cancel("booking-id")).not.toContain("/api/admin/bookings");
+    expect(bookingApi.cancel("booking-id")).toBe("/api/admin/bookings/booking-id");
   });
 });

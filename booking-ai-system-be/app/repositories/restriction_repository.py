@@ -43,3 +43,8 @@ class RestrictionRepository:
         self.session.add(restriction)
         self.session.flush()
         return restriction
+
+    # Làm mới entity từ database sau commit để lấy timestamp và giá trị do database sinh.
+    def refresh(self, restriction: CustomerRestriction) -> CustomerRestriction:
+        self.session.refresh(restriction)
+        return restriction

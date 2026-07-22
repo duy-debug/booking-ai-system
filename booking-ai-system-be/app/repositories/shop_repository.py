@@ -40,3 +40,8 @@ class ShopRepository:
         self.session.add(shop)
         self.session.flush()
         return shop
+
+    # Làm mới entity từ database sau commit để lấy timestamp và giá trị do database sinh.
+    def refresh(self, shop: Shop) -> Shop:
+        self.session.refresh(shop)
+        return shop

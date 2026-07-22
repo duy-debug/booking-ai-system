@@ -25,7 +25,11 @@ class ShiftRepository:
         therapist_id: UUID | None = None,
         is_active: bool | None = None,
     ) -> list[TherapistShift]:
-        stmt = select(TherapistShift).where(TherapistShift.shop_id == shop_id)
+        stmt = (
+            select(TherapistShift)
+            .where(TherapistShift.shop_id == shop_id)
+            .options(joinedload(TherapistShift.therapist))
+        )
         if work_date is not None:
             stmt = stmt.where(TherapistShift.work_date == work_date)
         if therapist_id is not None:
@@ -108,4 +112,9 @@ class ShiftRepository:
     def save(self, shift: TherapistShift) -> TherapistShift:
         self.session.add(shift)
         self.session.flush()
+        return shift
+
+    # Làm mới entity từ database sau commit để lấy timestamp và giá trị do database sinh.
+    def refresh(self, shift: TherapistShift) -> TherapistShift:
+        self.session.refresh(shift)
         return shift

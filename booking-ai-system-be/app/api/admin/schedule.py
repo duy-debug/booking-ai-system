@@ -6,15 +6,17 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db, parse_uuid
 from app.core.auth import require_admin
 from app.core.exceptions import AppError
-from app.services.booking_service import BookingService
+from app.schemas.common import DataResponse
+from app.schemas.schedule import ScheduleResponse
+from app.services.schedule_service import ScheduleService
 
 # Endpoint tổng hợp cho màn hình resource timeline (schedule).
 # 1 request trả về shop + therapists + shifts + blocked ranges + bookings + statuses + business hours.
-router = APIRouter(prefix="/api/admin/booking", tags=["admin-booking"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/api/admin/schedule", tags=["admin-schedule"], dependencies=[Depends(require_admin)])
 
 
 # Tổng hợp shop, therapist, ca làm và booking theo ngày để dựng toàn bộ timeline quản trị.
-@router.get("")
+@router.get("", response_model=DataResponse[ScheduleResponse])
 def get_schedule(
     shop_id: str = Query(..., description="ID shop (bắt buộc)"),
     booking_date: str = Query(..., alias="date", description="Ngày nghiệp vụ YYYY-MM-DD"),
@@ -41,9 +43,13 @@ def get_schedule(
                 detail=f"{label} không đúng format HH:MM",
             )
 
-    service = BookingService(db)
-    data = service.get_schedule(uid, parsed_date, view_from=view_from, view_to=view_to)
-    return {"data": data}
+    service = ScheduleService(db)
+    return service.get_daily_schedule(
+        uid,
+        parsed_date,
+        view_from=view_from,
+        view_to=view_to,
+    )
 
 
 # Kiểm tra chuỗi có đúng định dạng giờ 24 tiếng HH:MM và nằm trong miền giá trị hợp lệ hay không.

@@ -19,6 +19,7 @@ from app.repositories import (
     RestrictionRepository,
 )
 from app.services import (
+    BookingQueryService,
     BookingService,
     SlotService,
     EligibilityService,
@@ -513,9 +514,9 @@ class TestBookingService:
         assert exc.value.detail["code"] == "BOOKING_ALREADY_CANCELLED"
 
     def test_get_booking_not_found(self, db: Session):
-        service = BookingService(db)
+        service = BookingQueryService(db)
         with pytest.raises(AppError) as exc:
-            service.get(uuid.uuid4())
+            service.get_public_detail(uuid.uuid4())
         assert exc.value.status_code == 404
         assert exc.value.detail["code"] == "BOOKING_NOT_FOUND"
 

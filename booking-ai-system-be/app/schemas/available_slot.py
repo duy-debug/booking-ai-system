@@ -59,3 +59,9 @@ class AvailableTherapistResponse(BaseModel):
     name: str
     gender: str
     available: bool
+
+
+# Response danh sách slot kèm metadata của truy vấn.
+class AvailableSlotListResponse(BaseModel):
+    data: list[AvailableSlotResponse]
+    meta: AvailableSlotMeta

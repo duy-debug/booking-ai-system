@@ -37,7 +37,7 @@ class RestrictionService:
             restriction = CustomerRestriction(**body.model_dump())
             self.repo.save(restriction)
             self.session.commit()
-            self.session.refresh(restriction)
+            self.repo.refresh(restriction)
             return restriction
         except Exception:
             self.session.rollback()
@@ -67,7 +67,7 @@ class RestrictionService:
                 restriction.is_active = body.is_active
 
             self.session.commit()
-            self.session.refresh(restriction)
+            self.repo.refresh(restriction)
             return restriction
         except Exception:
             self.session.rollback()

@@ -45,3 +45,8 @@ class TherapistRepository:
         self.session.add(therapist)
         self.session.flush()
         return therapist
+
+    # Làm mới entity từ database sau commit để lấy timestamp và giá trị do database sinh.
+    def refresh(self, therapist: Therapist) -> Therapist:
+        self.session.refresh(therapist)
+        return therapist

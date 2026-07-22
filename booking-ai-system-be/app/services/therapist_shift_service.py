@@ -60,7 +60,7 @@ class TherapistShiftService:
             shift = TherapistShift(**body.model_dump())
             self.repo.save(shift)
             self.session.commit()
-            self.session.refresh(shift)
+            self.repo.refresh(shift)
             return shift
         except Exception:
             self.session.rollback()
@@ -97,7 +97,7 @@ class TherapistShiftService:
                 shift.is_active = body.is_active
 
             self.session.commit()
-            self.session.refresh(shift)
+            self.repo.refresh(shift)
             return shift
         except Exception:
             self.session.rollback()

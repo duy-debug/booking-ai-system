@@ -6,12 +6,14 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, parse_uuid
 from app.services import SlotService
+from app.schemas.available_slot import AvailableSlotListResponse, AvailableTherapistResponse
+from app.schemas.common import CollectionResponse
 
 router = APIRouter(prefix="/api/shops/{shop_id}", tags=["public-slots"])
 
 
 # Tra cứu khung giờ trống — nhận số người, course chính/phụ, yêu cầu therapist
-@router.get("/available-slots")
+@router.get("/available-slots", response_model=AvailableSlotListResponse)
 def list_available_slots(
     shop_id: str,
     booking_date: str = Query(...),
@@ -45,7 +47,10 @@ def list_available_slots(
 
 
 # Tra cứu therapist còn trống trong khung giờ — lọc theo giới tính
-@router.get("/available-therapists")
+@router.get(
+    "/available-therapists",
+    response_model=CollectionResponse[AvailableTherapistResponse],
+)
 def list_available_therapists(
     shop_id: str,
     booking_date: str = Query(...),

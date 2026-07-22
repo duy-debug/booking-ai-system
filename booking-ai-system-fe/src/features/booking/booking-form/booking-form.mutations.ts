@@ -23,10 +23,10 @@ export function useCreateBooking() {
   });
 }
 
-// Sửa booking: PATCH /api/bookings/{id} — chỉ booking_date / start_time.
+// Sửa booking từ màn hình quản trị qua endpoint admin được bảo vệ bằng Bearer token.
 // Căn cứ: docs/frontend-analysis.md §3.7 (allowed_fields).
 export function useUpdateBooking(id: UUID) {
   return useApiMutation<UpdateBookingPayload, BookingDetailRaw>((payload) =>
-    apiClient.patch<BookingDetailRaw>(`/api/bookings/${id}`, payload),
+    apiClient.patch<BookingDetailRaw>(`/api/admin/bookings/${id}`, payload),
   );
 }

@@ -1,51 +1,20 @@
-# Repository cho Schedule (admin) — truy vấn tổng hợp một ngày nghiệp vụ
-# chỉ làm data access, KHÔNG chứa business logic (nguyên tắc 4).
-# Dùng joinedload để tránh N+1 query khi build timeline.
+# Repository cho Booking — truy vấn booking và eager-load relationship cần thiết,
+# chỉ thực hiện data access và không chứa business logic.
 from datetime import date
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.models.booking import Booking
 from app.db.models.reservation import Reservation
 from app.db.models.reservation_course import ReservationCourse
-from app.db.models.therapist import Therapist
-from app.db.models.therapist_shift import TherapistShift
 
 
 class BookingRepository:
     # Khởi tạo với session database
     def __init__(self, session: Session):
         self.session = session
-
-    # Shop theo ID
-    def find_shop(self, shop_id) -> object | None:
-        from app.db.models.shop import Shop
-
-        return self.session.get(Shop, shop_id)
-
-    # Toàn bộ therapist của shop (kể cả không có ca) — để vẽ đủ resource row
-    def find_therapists_by_shop(self, shop_id) -> list[Therapist]:
-        stmt = (
-            select(Therapist)
-            .where(Therapist.shop_id == shop_id)
-            .order_by(Therapist.name)
-        )
-        return list(self.session.scalars(stmt).all())
-
-    # Ca làm việc trong shop theo ngày — kèm therapist (1 query, eager)
-    def find_shifts(self, shop_id, work_date: date) -> list[TherapistShift]:
-        stmt = (
-            select(TherapistShift)
-            .where(
-                TherapistShift.shop_id == shop_id,
-                TherapistShift.work_date == work_date,
-            )
-            .options(joinedload(TherapistShift.therapist))
-            .order_by(TherapistShift.start_time)
-        )
-        return list(self.session.scalars(stmt).all())
 
     # Booking trong shop theo ngày — eager load reservations + therapist + courses (1 query)
     # Trả về TẤT CẢ booking (kể cả cancelled) để client tự lọc theo status.
@@ -64,6 +33,7 @@ class BookingRepository:
                 joinedload(Booking.reservations)
                 .joinedload(Reservation.reservation_courses),
                 joinedload(Booking.customer),
+                joinedload(Booking.shop),
             )
             .order_by(Booking.start_time)
         )
@@ -80,6 +50,7 @@ class BookingRepository:
                 joinedload(Booking.reservations)
                 .joinedload(Reservation.reservation_courses),
                 joinedload(Booking.customer),
+                joinedload(Booking.shop),
             )
         )
         return self.session.scalar(stmt)
@@ -93,6 +64,7 @@ class BookingRepository:
         booking_date: date | None = None,
         status: str | None = None,
         limit: int = 20,
+        cursor: UUID | None = None,
     ) -> list[Booking]:
         stmt = select(Booking).options(joinedload(Booking.customer))
         if pos_booking_code:
@@ -105,8 +77,48 @@ class BookingRepository:
             stmt = stmt.where(Booking.booking_date == booking_date)
         if status:
             stmt = stmt.where(Booking.status == status)
-        stmt = stmt.order_by(Booking.created_at.desc()).limit(limit)
+        stmt = self._apply_cursor(stmt, cursor)
+        stmt = stmt.order_by(Booking.created_at.desc(), Booking.booking_id.desc()).limit(limit)
         return list(self.session.scalars(stmt).unique().all())
+
+    # Danh sách booking admin — lọc theo các trường quản trị và eager-load customer để tránh N+1.
+    def find_admin_all(
+        self,
+        *,
+        shop_id: UUID | None = None,
+        booking_date: date | None = None,
+        status: str | None = None,
+        phone: str | None = None,
+        pos_booking_code: str | None = None,
+        limit: int = 20,
+        cursor: UUID | None = None,
+    ) -> list[Booking]:
+        stmt = select(Booking).options(joinedload(Booking.customer))
+        if shop_id:
+            stmt = stmt.where(Booking.shop_id == shop_id)
+        if booking_date:
+            stmt = stmt.where(Booking.booking_date == booking_date)
+        if status:
+            stmt = stmt.where(Booking.status == status)
+        if phone:
+            stmt = stmt.where(Booking.customer.has(phone=phone))
+        if pos_booking_code:
+            stmt = stmt.where(Booking.pos_booking_code == pos_booking_code)
+        stmt = self._apply_cursor(stmt, cursor)
+        stmt = stmt.order_by(Booking.created_at.desc(), Booking.booking_id.desc()).limit(limit)
+        return list(self.session.scalars(stmt).unique().all())
+
+    # Áp dụng cursor theo cặp created_at và booking_id để phân trang ổn định khi nhiều booking cùng thời điểm.
+    def _apply_cursor(self, stmt, cursor: UUID | None):
+        if cursor is None:
+            return stmt
+        cursor_booking = self.find_by_id(cursor)
+        if cursor_booking is None:
+            return stmt.where(False)
+        return stmt.where(
+            tuple_(Booking.created_at, Booking.booking_id)
+            < tuple_(cursor_booking.created_at, cursor_booking.booking_id)
+        )
 
     # Booking không cancelled trong shop theo ngày — cho availability check
     def find_by_shop_date_non_cancelled(self, shop_id: UUID, booking_date: date) -> list[Booking]:

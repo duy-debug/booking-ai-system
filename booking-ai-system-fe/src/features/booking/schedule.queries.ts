@@ -13,7 +13,7 @@ async function fetchSchedule(
   shopId: UUID,
   date: ISODate,
 ): Promise<ScheduleViewModel> {
-  const raw = await apiClient.get<ScheduleResponseRaw>("/api/admin/booking", {
+  const raw = await apiClient.get<ScheduleResponseRaw>("/api/admin/schedule", {
     query: { shop_id: shopId, date },
   });
   return toScheduleViewModel(raw, FULL_DAY_RANGE);

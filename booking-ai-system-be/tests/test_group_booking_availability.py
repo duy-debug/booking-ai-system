@@ -245,7 +245,10 @@ def test_group_update_keeps_parallel_duration(monkeypatch):
         reservations=reservations,
     )
     instance = BookingService.__new__(BookingService)
-    instance.schedule_repo = SimpleNamespace(find_by_id=lambda booking_id: booking)
+    instance.booking_repo = SimpleNamespace(
+        find_by_id=lambda booking_id: booking,
+        save=lambda value: value,
+    )
     instance.session = SimpleNamespace(flush=lambda: None)
     monkeypatch.setattr(
         "app.services.booking_service._booking_to_detail", lambda value: value
@@ -299,7 +302,10 @@ def test_full_group_update_addresses_each_person_by_reservation_id(monkeypatch):
     )
 
     instance = BookingService.__new__(BookingService)
-    instance.schedule_repo = SimpleNamespace(find_by_id=lambda value: booking)
+    instance.booking_repo = SimpleNamespace(
+        find_by_id=lambda value: booking,
+        save=lambda value: value,
+    )
     instance.customer_repo = SimpleNamespace()
     instance.therapist_repo = SimpleNamespace(
         find_by_id=lambda value: next(t for t in new_therapists if t.therapist_id == value)
@@ -313,6 +319,8 @@ def test_full_group_update_addresses_each_person_by_reservation_id(monkeypatch):
     )
     instance.reservation_repo = SimpleNamespace(
         exists_overlap=lambda *args, **kwargs: False,
+        delete=lambda value: None,
+        save=lambda value: value,
     )
     instance.session = SimpleNamespace(flush=lambda: None, delete=lambda value: None)
     monkeypatch.setattr("app.services.booking_service._booking_to_detail", lambda value: value)
@@ -381,7 +389,7 @@ def test_group_update_rejects_different_courses_between_people():
         ]
     )
     instance = BookingService.__new__(BookingService)
-    instance.schedule_repo = SimpleNamespace(find_by_id=lambda value: booking)
+    instance.booking_repo = SimpleNamespace(find_by_id=lambda value: booking)
 
     with pytest.raises(AppError) as error:
         instance._update(booking.booking_id, body)
@@ -422,7 +430,7 @@ def test_single_to_group_requires_auto_assignment():
         ]
     )
     instance = BookingService.__new__(BookingService)
-    instance.schedule_repo = SimpleNamespace(find_by_id=lambda value: booking)
+    instance.booking_repo = SimpleNamespace(find_by_id=lambda value: booking)
 
     with pytest.raises(AppError) as error:
         instance._update(booking.booking_id, body)
@@ -450,7 +458,7 @@ def test_single_to_group_rejects_manually_selected_therapist():
         ],
     )
     instance = BookingService.__new__(BookingService)
-    instance.schedule_repo = SimpleNamespace(find_by_id=lambda value: booking)
+    instance.booking_repo = SimpleNamespace(find_by_id=lambda value: booking)
 
     with pytest.raises(AppError) as error:
         instance._update(booking.booking_id, body)
@@ -509,7 +517,8 @@ def priority_service(displaced, requested_result, replacement_result):
         evaluate=lambda **kwargs: next(results)
     )
     instance.reservation_repo = SimpleNamespace(
-        find_overlaps_for_update=lambda *args: [displaced]
+        find_overlaps_for_update=lambda *args: [displaced],
+        save=lambda value: value,
     )
     instance.session = SimpleNamespace(flush=lambda: None)
     return instance

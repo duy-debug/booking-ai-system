@@ -42,7 +42,7 @@ class TherapistService:
             therapist = Therapist(shop_id=shop_id, **body.model_dump())
             self.repo.save(therapist)
             self.session.commit()
-            self.session.refresh(therapist)
+            self.repo.refresh(therapist)
             return therapist
         except Exception:
             self.session.rollback()
@@ -64,7 +64,7 @@ class TherapistService:
                 therapist.is_active = body.is_active
 
             self.session.commit()
-            self.session.refresh(therapist)
+            self.repo.refresh(therapist)
             return therapist
         except Exception:
             self.session.rollback()

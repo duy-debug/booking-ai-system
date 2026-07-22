@@ -20,9 +20,13 @@ class ReservationRepository:
         stmt = (
             select(Reservation)
             .where(Reservation.booking_id == booking_id)
+            .options(
+                joinedload(Reservation.therapist),
+                joinedload(Reservation.reservation_courses),
+            )
             .order_by(Reservation.person_index)
         )
-        return list(self.session.scalars(stmt).all())
+        return list(self.session.scalars(stmt).unique().all())
 
     # Reservation không cancelled trong shop theo ngày
     def find_by_shop_date_non_cancelled(self, shop_id: UUID, booking_date: date) -> list[Reservation]:
@@ -155,3 +159,14 @@ class ReservationRepository:
         self.session.add(reservation)
         self.session.flush()
         return reservation
+
+    # Lưu course snapshot của reservation và flush để dữ liệu sẵn sàng trong transaction hiện tại.
+    def save_course(self, course: ReservationCourse) -> ReservationCourse:
+        self.session.add(course)
+        self.session.flush()
+        return course
+
+    # Xóa reservation; cascade của ORM sẽ xóa các course snapshot liên quan.
+    def delete(self, reservation: Reservation) -> None:
+        self.session.delete(reservation)
+        self.session.flush()

@@ -103,7 +103,7 @@ class ReservationResponse(BaseModel):
     end_time: time
     status: str
     assignment_source: str = "auto"
-    courses: list[ReservationCourseResponse] = []
+    courses: list[ReservationCourseResponse] = Field(default_factory=list)
 
 
 # Response chi tiết booking (admin) — gồm tất cả field kể cả POS, reservation
@@ -128,7 +128,7 @@ class AdminBookingResponse(BaseModel):
     cancelled_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
-    reservations: list[ReservationResponse] = []
+    reservations: list[ReservationResponse] = Field(default_factory=list)
 
 
 # Response danh sách booking (admin) — dạng rút gọn, không có reservation
@@ -167,7 +167,7 @@ class PublicBookingResponse(BaseModel):
     cancelled_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
-    reservations: list[ReservationResponse] = []
+    reservations: list[ReservationResponse] = Field(default_factory=list)
 
 
 # Response danh sách booking (public) — dạng rút gọn
@@ -191,3 +191,77 @@ class BookingEligibilityCheckResponse(BaseModel):
     eligible: bool
     customer: dict | None = None
     restriction: dict | None = None
+
+
+# Khách hàng rút gọn trong danh sách booking dành cho admin.
+class AdminBookingCustomerSummary(BaseModel):
+    customer_id: UUID
+    phone: str
+    name: str | None
+
+
+# Một dòng danh sách booking admin kèm thông tin khách hàng cần để tìm kiếm và hiển thị.
+class AdminBookingListResponse(BaseModel):
+    booking_id: UUID
+    pos_booking_code: str | None
+    shop_id: UUID
+    customer: AdminBookingCustomerSummary | None
+    booking_date: date
+    start_time: time
+    end_time: time
+    number_of_people: int
+    status: str
+
+
+# Thông tin shop rút gọn trong màn hình chi tiết booking admin.
+class AdminBookingShopDetail(BaseModel):
+    shop_id: UUID | None
+    name: str | None
+
+
+# Thông tin thành viên của khách hàng trong màn hình chi tiết booking admin.
+class AdminBookingCustomerDetail(BaseModel):
+    customer_id: UUID | None
+    phone: str | None
+    name: str | None
+    is_member: bool
+    member_rank: str | None
+    visit_count: int
+
+
+# Therapist được phân công cho một reservation trong chi tiết booking admin.
+class AdminReservationTherapistDetail(BaseModel):
+    therapist_id: UUID
+    name: str | None
+
+
+# Course snapshot trong chi tiết booking admin.
+class AdminReservationCourseDetail(BaseModel):
+    course_id: UUID
+    course_role: str
+    course_name_snapshot: str
+    duration_snapshot: int
+    price_snapshot: float
+
+
+# Reservation cùng therapist và danh sách course trong chi tiết booking admin.
+class AdminReservationDetail(BaseModel):
+    reservation_id: UUID
+    person_index: int
+    therapist: AdminReservationTherapistDetail
+    courses: list[AdminReservationCourseDetail]
+
+
+# Response chi tiết đầy đủ mà modal chỉnh sửa booking admin đang sử dụng.
+class AdminBookingDetailResponse(BaseModel):
+    booking_id: UUID
+    pos_booking_code: str | None
+    status: str
+    shop: AdminBookingShopDetail
+    customer: AdminBookingCustomerDetail | None
+    booking_date: date
+    start_time: time
+    end_time: time
+    number_of_people: int
+    total_duration_minutes: int
+    reservations: list[AdminReservationDetail]

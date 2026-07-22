@@ -1,4 +1,4 @@
-// Raw backend DTO (theo app/api/admin/bookings.py, therapist_shifts.py, booking_service.py)
+// Raw backend DTO (theo admin/bookings.py, therapist_shifts.py và các query/schedule service).
 import type { UUID, ISOTime, ISODate, BookingStatus } from "@/shared/types/common";
 
 // --- Shift (therapist_shifts) ---

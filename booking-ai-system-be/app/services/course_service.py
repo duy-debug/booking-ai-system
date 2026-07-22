@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from uuid import UUID
 
 # Service cho Course — tạo, sửa, xem danh sách course trong shop; kiểm tra shop tồn tại
@@ -7,7 +9,7 @@ from app.core.exceptions import AppError
 from app.db.models.course import Course
 from app.repositories.course_repository import CourseRepository
 from app.repositories.shop_repository import ShopRepository
-from app.schemas.course import CourseCreate, CourseUpdate
+from app.schemas.course import CourseCreate, CourseUpdate, PublicCourseResponse
 
 
 class CourseService:
@@ -22,6 +24,22 @@ class CourseService:
         if not self.shop_repo.find_by_id(shop_id):
             raise AppError(404, code="SHOP_NOT_FOUND", detail="Không tìm thấy shop")
         return self.repo.find_by_shop(shop_id, course_type=course_type, is_active=is_active)
+
+    # Trả danh sách course public dưới dạng DTO sau khi kiểm tra shop tồn tại.
+    def list_public(
+        self,
+        shop_id: UUID,
+        course_type: str | None = None,
+        is_active: bool = True,
+    ) -> list[PublicCourseResponse]:
+        return [
+            PublicCourseResponse.model_validate(course)
+            for course in self.list(
+                shop_id,
+                course_type=course_type,
+                is_active=is_active,
+            )
+        ]
 
     # Chi tiết course theo ID — báo lỗi 404 nếu không tìm thấy
     def get(self, course_id: UUID) -> Course:
@@ -42,7 +60,7 @@ class CourseService:
             course = Course(shop_id=shop_id, **body.model_dump())
             self.repo.save(course)
             self.session.commit()
-            self.session.refresh(course)
+            self.repo.refresh(course)
             return course
         except Exception:
             self.session.rollback()
@@ -68,7 +86,7 @@ class CourseService:
                 course.is_active = body.is_active
 
             self.session.commit()
-            self.session.refresh(course)
+            self.repo.refresh(course)
             return course
         except Exception:
             self.session.rollback()
