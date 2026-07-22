@@ -160,7 +160,11 @@ export function ScheduleBoard({
   return (
     <div
       ref={boardRef}
-      className={`h-full border border-zinc-200 rounded-lg bg-white ${isDesktop ? "overflow-hidden" : "overflow-auto"}`}
+      className={`h-full min-h-0 rounded-lg border border-zinc-200 bg-white ${
+        isDesktop
+          ? "overflow-x-hidden overflow-y-auto"
+          : "overflow-auto"
+      }`}
     >
       <ScheduleHeader range={range} pxPerMinute={pxPerMinute} />
       {/* Each ResourceRow has its own ResourceColumn + timeline */}
