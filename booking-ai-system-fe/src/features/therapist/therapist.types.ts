@@ -9,7 +9,9 @@ export const therapistCreateSchema = z.object({
 });
 export type TherapistCreateInput = z.infer<typeof therapistCreateSchema>;
 
-export const therapistUpdateSchema = therapistCreateSchema.partial();
+export const therapistUpdateSchema = therapistCreateSchema
+  .omit({ pos_therapist_code: true })
+  .partial();
 export type TherapistUpdateInput = z.infer<typeof therapistUpdateSchema>;
 
 export interface TherapistResponse {

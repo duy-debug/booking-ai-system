@@ -1,11 +1,12 @@
-// Hiển thị trang chào tổng quan và hướng người dùng đến các phân hệ trong sidebar.
+import { AdminDashboard } from "@/features/dashboard/AdminDashboard";
+import { AdminPageHeader } from "@/shared/components/admin/AdminUi";
+
+// Hiển thị thống kê shop và lối tắt tới toàn bộ phân hệ quản trị.
 export default function AdminHomePage() {
   return (
-    <div>
-      <h1 className="mb-4 text-2xl font-bold text-zinc-900">Tổng quan</h1>
-      <p className="text-zinc-500">
-        Chào mừng đến hệ thống quản trị booking. Chọn mục bên trái để bắt đầu.
-      </p>
-    </div>
+    <section className="mx-auto w-full max-w-7xl">
+      <AdminPageHeader title="Tổng quan" description="Theo dõi nhanh cấu hình hệ thống và truy cập các phân hệ quản trị." />
+      <AdminDashboard />
+    </section>
   );
 }

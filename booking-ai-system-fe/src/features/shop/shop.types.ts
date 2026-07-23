@@ -6,8 +6,8 @@ export const shopCreateSchema = z.object({
   shop_code: z.string().min(1, "Mã shop bắt buộc"),
   pos_shop_code: z.string().min(1, "Mã POS bắt buộc"),
   name: z.string().min(1, "Tên shop bắt buộc"),
-  address: z.string().optional(),
-  phone: z.string().optional(),
+  address: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
   is_active: z.boolean().default(true),
   therapist_break_minutes: z.union([
     z.literal(0),
@@ -18,7 +18,18 @@ export const shopCreateSchema = z.object({
 });
 export type ShopCreateInput = z.infer<typeof shopCreateSchema>;
 
-export const shopUpdateSchema = shopCreateSchema.partial();
+export const shopUpdateSchema = z.object({
+  name: z.string().min(1, "Tên shop bắt buộc").optional(),
+  address: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  is_active: z.boolean().optional(),
+  therapist_break_minutes: z.union([
+    z.literal(0),
+    z.literal(5),
+    z.literal(10),
+    z.literal(15),
+  ]).optional(),
+});
 export type ShopUpdateInput = z.infer<typeof shopUpdateSchema>;
 
 // --- Backend DTO (raw) ---

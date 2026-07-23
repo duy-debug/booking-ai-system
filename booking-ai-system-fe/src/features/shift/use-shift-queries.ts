@@ -25,6 +25,7 @@ export function useShifts(
       is_active: opts?.isActive,
     },
     toShiftUiModel,
+    { enabled: Boolean(shopId) },
   );
 }
 

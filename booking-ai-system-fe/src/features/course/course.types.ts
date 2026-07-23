@@ -15,7 +15,9 @@ export const courseCreateSchema = z.object({
 });
 export type CourseCreateInput = z.infer<typeof courseCreateSchema>;
 
-export const courseUpdateSchema = courseCreateSchema.partial();
+export const courseUpdateSchema = courseCreateSchema
+  .omit({ pos_course_code: true })
+  .partial();
 export type CourseUpdateInput = z.infer<typeof courseUpdateSchema>;
 
 export interface AdminCourseResponse {

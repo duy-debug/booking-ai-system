@@ -21,6 +21,7 @@ export function useCourses(shopId: UUID, opts?: { courseType?: string; isActive?
       is_active: opts?.isActive,
     },
     toCourseUiModel,
+    { enabled: Boolean(shopId) },
   );
 }
 

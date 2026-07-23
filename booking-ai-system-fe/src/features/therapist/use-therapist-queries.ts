@@ -18,6 +18,7 @@ export function useTherapists(shopId: UUID, isActive?: boolean) {
     therapistApi.listByShop(shopId),
     isActive === undefined ? undefined : { is_active: isActive },
     toTherapistUiModel,
+    { enabled: Boolean(shopId) },
   );
 }
 

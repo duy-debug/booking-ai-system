@@ -1,9 +1,12 @@
-// Hiển thị điểm vào của danh sách khách hàng bị hạn chế quyền đặt lịch.
+import { RestrictionManager } from "@/features/restriction/RestrictionManager";
+import { AdminPageHeader } from "@/shared/components/admin/AdminUi";
+
+// Hiển thị màn hình quản lý khách hàng bị hạn chế quyền đặt booking.
 export default function AdminRestrictionsPage() {
   return (
-    <div>
-      <h1 className="mb-4 text-2xl font-bold text-zinc-900">Danh sách cấm khách</h1>
-      <p className="text-zinc-500">Danh sách số điện thoại bị cấm sẽ hiển thị tại đây.</p>
-    </div>
+    <section className="mx-auto w-full max-w-7xl">
+      <AdminPageHeader title="Hạn chế khách hàng" description="Quản lý số điện thoại không được phép tạo booking và lý do hạn chế." />
+      <RestrictionManager />
+    </section>
   );
 }

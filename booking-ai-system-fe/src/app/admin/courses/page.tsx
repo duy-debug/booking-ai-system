@@ -1,9 +1,12 @@
-// Hiển thị điểm vào của phân hệ quản lý course và hướng dẫn chọn shop cần thao tác.
+import { CourseManager } from "@/features/course/CourseManager";
+import { AdminPageHeader } from "@/shared/components/admin/AdminUi";
+
+// Hiển thị màn hình quản lý course theo shop với đầy đủ bộ lọc và thao tác CRUD.
 export default function AdminCoursesPage() {
   return (
-    <div>
-      <h1 className="mb-4 text-2xl font-bold text-zinc-900">Quản lý Course</h1>
-      <p className="text-zinc-500">Chọn shop để xem danh sách course.</p>
-    </div>
+    <section className="mx-auto w-full max-w-7xl">
+      <AdminPageHeader title="Quản lý course" description="Quản lý course chính, add-on, thời lượng, giá và trạng thái theo từng shop." />
+      <CourseManager />
+    </section>
   );
 }

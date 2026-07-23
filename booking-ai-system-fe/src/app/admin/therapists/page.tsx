@@ -1,9 +1,12 @@
-// Hiển thị điểm vào của phân hệ quản lý therapist theo từng shop.
+import { TherapistManager } from "@/features/therapist/TherapistManager";
+import { AdminPageHeader } from "@/shared/components/admin/AdminUi";
+
+// Hiển thị màn hình quản lý therapist theo shop và trạng thái hoạt động.
 export default function AdminTherapistsPage() {
   return (
-    <div>
-      <h1 className="mb-4 text-2xl font-bold text-zinc-900">Quản lý Therapist</h1>
-      <p className="text-zinc-500">Chọn shop để xem danh sách therapist.</p>
-    </div>
+    <section className="mx-auto w-full max-w-7xl">
+      <AdminPageHeader title="Quản lý therapist" description="Quản lý nhân viên, mã POS, giới tính và trạng thái làm việc theo từng shop." />
+      <TherapistManager />
+    </section>
   );
 }
