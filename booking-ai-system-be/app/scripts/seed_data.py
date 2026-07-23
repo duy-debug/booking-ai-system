@@ -26,46 +26,185 @@ engine = create_engine(settings.DATABASE_URL)
 
 SHOPS = [
     {
-        "shop_code": "thien-an-massage",
-        "pos_shop_code": "POS-TA-001",
-        "name": "Thiên An Massage & Spa",
-        "address": "123 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh",
-        "phone": "02838251234",
+        "shop_code": "tokyo-sakura",
+        "pos_shop_code": "POS-TK-001",
+        "name": "東京さくらリラクゼーション",
+        "address": "東京都渋谷区神宮前一丁目十二番地",
+        "phone": "0312345678",
+        "therapist_break_minutes": 5,
     },
     {
-        "shop_code": "phuc-an-massage",
-        "pos_shop_code": "POS-PA-001",
-        "name": "Phúc An Massage & Body",
-        "address": "456 Lê Lợi, Quận 3, TP. Hồ Chí Minh",
-        "phone": "02838255678",
+        "shop_code": "osaka-nagomi",
+        "pos_shop_code": "POS-OS-001",
+        "name": "大阪なごみ温泉スパ",
+        "address": "大阪府大阪市北区梅田二丁目五番地",
+        "phone": "0661234567",
+        "therapist_break_minutes": 10,
+    },
+    {
+        "shop_code": "kyoto-tsukikage",
+        "pos_shop_code": "POS-KY-001",
+        "name": "京都月影癒やし処",
+        "address": "京都府京都市東山区祇園町南側五百七十番地",
+        "phone": "0751234567",
+        "therapist_break_minutes": 15,
+    },
+    {
+        "shop_code": "yokohama-minato",
+        "pos_shop_code": "POS-YH-001",
+        "name": "横浜みなと整体院",
+        "address": "神奈川県横浜市中区山下町百番地",
+        "phone": "0451234567",
+        "therapist_break_minutes": 5,
+    },
+    {
+        "shop_code": "sapporo-yuki",
+        "pos_shop_code": "POS-SP-001",
+        "name": "札幌雪の華スパ",
+        "address": "北海道札幌市中央区北一条西三丁目",
+        "phone": "0111234567",
+        "therapist_break_minutes": 10,
+    },
+    {
+        "shop_code": "fukuoka-hakata",
+        "pos_shop_code": "POS-FK-001",
+        "name": "福岡博多くつろぎ庵",
+        "address": "福岡県福岡市博多区博多駅前三丁目",
+        "phone": "0921234567",
+        "therapist_break_minutes": 15,
+    },
+    {
+        "shop_code": "nagoya-aoi",
+        "pos_shop_code": "POS-NG-001",
+        "name": "名古屋葵リフレッシュ館",
+        "address": "愛知県名古屋市中区栄三丁目十五番地",
+        "phone": "0521234567",
+        "therapist_break_minutes": 5,
+    },
+    {
+        "shop_code": "kobe-rokkou",
+        "pos_shop_code": "POS-KB-001",
+        "name": "神戸六甲やすらぎの森",
+        "address": "兵庫県神戸市中央区三宮町一丁目",
+        "phone": "0781234567",
+        "therapist_break_minutes": 10,
+    },
+    {
+        "shop_code": "sendai-aoba",
+        "pos_shop_code": "POS-SD-001",
+        "name": "仙台青葉健康サロン",
+        "address": "宮城県仙台市青葉区中央二丁目",
+        "phone": "0221234567",
+        "therapist_break_minutes": 15,
+    },
+    {
+        "shop_code": "hiroshima-momiji",
+        "pos_shop_code": "POS-HS-001",
+        "name": "広島もみじ癒やし館",
+        "address": "広島県広島市中区紙屋町一丁目",
+        "phone": "0821234567",
+        "therapist_break_minutes": 5,
+    },
+    {
+        "shop_code": "kanazawa-kaga",
+        "pos_shop_code": "POS-KZ-001",
+        "name": "金沢加賀美人の湯",
+        "address": "石川県金沢市香林坊二丁目",
+        "phone": "0761234567",
+        "therapist_break_minutes": 10,
+    },
+    {
+        "shop_code": "naha-chura",
+        "pos_shop_code": "POS-NH-001",
+        "name": "那覇ちゅら海リラクゼーション",
+        "address": "沖縄県那覇市久茂地三丁目",
+        "phone": "0981234567",
+        "therapist_break_minutes": 15,
+    },
+    {
+        "shop_code": "chiba-narita",
+        "pos_shop_code": "POS-CB-001",
+        "name": "千葉成田和みの間",
+        "address": "千葉県成田市花崎町八百三十九番地",
+        "phone": "0431234567",
+        "therapist_break_minutes": 5,
+    },
+    {
+        "shop_code": "saitama-omiya",
+        "pos_shop_code": "POS-ST-001",
+        "name": "埼玉大宮癒やし小町",
+        "address": "埼玉県さいたま市大宮区桜木町一丁目",
+        "phone": "0481234567",
+        "therapist_break_minutes": 10,
+    },
+    {
+        "shop_code": "niigata-shinano",
+        "pos_shop_code": "POS-NI-001",
+        "name": "新潟しなの健康処",
+        "address": "新潟県新潟市中央区万代一丁目",
+        "phone": "0251234567",
+        "therapist_break_minutes": 15,
+    },
+    {
+        "shop_code": "shizuoka-fuji",
+        "pos_shop_code": "POS-SZ-001",
+        "name": "静岡富士見リラクゼーション",
+        "address": "静岡県静岡市葵区御幸町十丁目",
+        "phone": "0541234567",
+        "therapist_break_minutes": 5,
+    },
+    {
+        "shop_code": "okayama-koraku",
+        "pos_shop_code": "POS-OY-001",
+        "name": "岡山後楽やすらぎ庵",
+        "address": "岡山県岡山市北区駅元町一丁目",
+        "phone": "0861234567",
+        "therapist_break_minutes": 10,
+    },
+    {
+        "shop_code": "kagoshima-sakurajima",
+        "pos_shop_code": "POS-KG-001",
+        "name": "鹿児島桜島温浴院",
+        "address": "鹿児島県鹿児島市中央町一番地",
+        "phone": "0991234567",
+        "therapist_break_minutes": 15,
+    },
+    {
+        "shop_code": "kumamoto-aso",
+        "pos_shop_code": "POS-KM-001",
+        "name": "熊本阿蘇くつろぎ館",
+        "address": "熊本県熊本市中央区上通町二丁目",
+        "phone": "0961234567",
+        "therapist_break_minutes": 5,
+    },
+    {
+        "shop_code": "matsuyama-dogo",
+        "pos_shop_code": "POS-MY-001",
+        "name": "松山道後湯けむり処",
+        "address": "愛媛県松山市道後湯之町五丁目",
+        "phone": "0891234567",
+        "therapist_break_minutes": 10,
     },
 ]
 
+COURSE_TEMPLATES = [
+    ("body-care-60", "全身もみほぐし六十分", 60, "6500", "main"),
+    ("body-care-90", "全身もみほぐし九十分", 90, "9000", "main"),
+    ("thai-care-60", "タイ古式施術六十分", 60, "7500", "main"),
+    ("thai-care-90", "タイ古式施術九十分", 90, "10500", "main"),
+    ("aroma-oil-60", "香り油全身施術六十分", 60, "8500", "main"),
+    ("aroma-oil-90", "香り油全身施術九十分", 90, "12000", "main"),
+    ("hot-stone-60", "温石療法六十分", 60, "9000", "main"),
+    ("hot-stone-90", "温石療法九十分", 90, "12500", "main"),
+    ("herbal-footbath", "薬草足湯", 30, "2500", "addon"),
+    ("head-spa", "頭皮温浴", 30, "3500", "addon"),
+    ("neck-shoulder", "首肩集中ほぐし", 30, "3000", "addon"),
+    ("steam-sauna", "薬草蒸し風呂", 30, "2800", "addon"),
+]
+
 COURSES = {
-    "thien-an-massage": [
-        ("massage-thai", "Massage Thái Cổ Điển", 60, "350000", "main"),
-        ("massage-thai-90", "Massage Thái Cổ Điển (90 phút)", 90, "500000", "main"),
-        ("massage-da", "Massage Đá Nóng", 60, "400000", "main"),
-        ("massage-da-90", "Massage Đá Nóng (90 phút)", 90, "550000", "main"),
-        ("massage-thao-duoc", "Massage Thảo Dược", 60, "380000", "main"),
-        ("massage-thao-duoc-90", "Massage Thảo Dược (90 phút)", 90, "520000", "main"),
-        ("tam-thuoc", "Tắm Thảo Dược", 30, "200000", "addon"),
-        ("xong-hoi", "Xông Hơi", 30, "150000", "addon"),
-        ("ngam-chan", "Ngâm Chân Thảo Dược", 20, "100000", "addon"),
-        ("massage-co-vai-gay", "Massage Cổ Vai Gáy", 30, "180000", "addon"),
-    ],
-    "phuc-an-massage": [
-        ("massage-body", "Massage Body Toàn Thân", 60, "320000", "main"),
-        ("massage-body-90", "Massage Body Toàn Thân (90 phút)", 90, "450000", "main"),
-        ("massage-sports", "Massage Sports (Thể Thao)", 60, "380000", "main"),
-        ("massage-sports-90", "Massage Sports (90 phút)", 90, "520000", "main"),
-        ("massage-mo-hinh", "Massage Mô Hình", 60, "400000", "main"),
-        ("massage-thai-phuc-hoi", "Massage Thái Phục Hồi", 90, "480000", "main"),
-        ("massage-dau-mat", "Massage Đầu - Mặt - Cổ", 30, "160000", "addon"),
-        ("massage-tay-chan", "Massage Tay - Chân", 30, "140000", "addon"),
-        ("tam-thuoc", "Tắm Thảo Dược", 30, "200000", "addon"),
-        ("xong-hoi", "Xông Hơi", 30, "150000", "addon"),
-    ],
+    shop["shop_code"]: list(COURSE_TEMPLATES)
+    for shop in SHOPS
 }
 
 JAPANESE_SURNAMES = [
@@ -99,7 +238,7 @@ SEED_DAYS = 21
 def build_therapists() -> dict[str, list[tuple[str, str, str]]]:
     result = {}
     for shop_index, shop_code in enumerate(COURSES):
-        prefix = "ta" if shop_code == "thien-an-massage" else "pa"
+        prefix = f"s{shop_index + 1:02d}"
         employees = []
         for index in range(THERAPISTS_PER_SHOP):
             gender = "female" if index % 2 == 0 else "male"
@@ -123,7 +262,7 @@ def build_customers() -> list[dict]:
         surname = JAPANESE_SURNAMES[index % len(JAPANESE_SURNAMES)]
         given_name = all_given_names[(index * 7 + index // len(JAPANESE_SURNAMES)) % len(all_given_names)]
         is_member = index % 4 != 3
-        member_rank = "gold" if index % 12 == 0 else "silver" if is_member else None
+        member_rank = "金会員" if index % 12 == 0 else "銀会員" if is_member else None
         phone_prefix = ("070", "080", "090")[index % 3]
         customers.append({
             "phone": f"{phone_prefix}{index + 1:08d}",
@@ -139,9 +278,36 @@ THERAPISTS = build_therapists()
 CUSTOMERS = build_customers()
 
 RESTRICTIONS = [
-    {"phone": "0911111111", "reason": "Khách hủy lịch nhiều lần không báo trước", "is_active": True},
-    {"phone": "0922222222", "reason": "Khách có hành vi quấy rối nhân viên", "is_active": True},
-    {"phone": "0911111111", "reason": "Đã hòa giải, mở lại quyền đặt lịch", "is_active": False},
+    {
+        "phone": "07000000001",
+        "reason": "無断キャンセルを繰り返したため",
+        "is_active": True,
+    },
+    {
+        "phone": "08000000002",
+        "reason": "従業員への迷惑行為が確認されたため",
+        "is_active": True,
+    },
+    {
+        "phone": "09000000003",
+        "reason": "支払いに関する問題が解決していないため",
+        "is_active": True,
+    },
+    {
+        "phone": "07000000004",
+        "reason": "本人確認が完了していないため",
+        "is_active": True,
+    },
+    {
+        "phone": "08000000005",
+        "reason": "店舗との話し合いにより利用制限を解除",
+        "is_active": False,
+    },
+    {
+        "phone": "09000000006",
+        "reason": "予約規約への同意が確認できないため",
+        "is_active": True,
+    },
 ]
 
 BOOKING_START_TIMES = [
