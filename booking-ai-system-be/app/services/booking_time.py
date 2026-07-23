@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta, timezone
-from zoneinfo import ZoneInfo
+from datetime import date, datetime, time, timedelta, timezone, tzinfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.core.config import settings
 from app.core.exceptions import AppError
@@ -18,6 +18,27 @@ def current_utc_time() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# Các timezone cố định project đang dùng, phục vụ fallback trên Windows chưa có tzdata.
+FIXED_TIMEZONE_OFFSETS = {
+    "UTC": 0,
+    "Etc/UTC": 0,
+    "Asia/Ho_Chi_Minh": 7,
+    "Asia/Bangkok": 7,
+    "Asia/Tokyo": 9,
+}
+
+
+# Nạp timezone IANA và dùng offset cố định đã biết khi Windows chưa cài cơ sở dữ liệu tzdata.
+def resolve_shop_timezone(timezone_name: str) -> tzinfo:
+    try:
+        return ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError:
+        offset_hours = FIXED_TIMEZONE_OFFSETS.get(timezone_name)
+        if offset_hours is not None:
+            return timezone(timedelta(hours=offset_hours), name=timezone_name)
+        raise
+
+
 # Quy đổi ngày giờ tại timezone của shop sang UTC và tính mốc sớm nhất khách được phép đặt lịch.
 def booking_start_window(
     booking_date: date,
@@ -27,7 +48,7 @@ def booking_start_window(
     timezone_name: str | None = None,
     advance_minutes: int | None = None,
 ) -> BookingStartWindow:
-    shop_timezone = ZoneInfo(timezone_name or settings.SHOP_TIMEZONE)
+    shop_timezone = resolve_shop_timezone(timezone_name or settings.SHOP_TIMEZONE)
     current = now or current_utc_time()
     if current.tzinfo is None or current.utcoffset() is None:
         raise ValueError("now must be timezone-aware")

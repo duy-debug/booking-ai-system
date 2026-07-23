@@ -6,11 +6,23 @@ from app.core.exceptions import AppError
 from app.services.booking_time import (
     booking_start_window,
     is_booking_start_allowed,
+    resolve_shop_timezone,
     validate_booking_start,
 )
 
 
 NOW = datetime(2026, 7, 21, 2, 0, tzinfo=timezone.utc)
+
+
+def test_vietnam_timezone_is_available_without_system_tzdata(monkeypatch):
+    def missing_zoneinfo(_timezone_name: str):
+        raise __import__("zoneinfo").ZoneInfoNotFoundError
+
+    monkeypatch.setattr("app.services.booking_time.ZoneInfo", missing_zoneinfo)
+
+    vietnam_timezone = resolve_shop_timezone("Asia/Ho_Chi_Minh")
+
+    assert vietnam_timezone.utcoffset(None).total_seconds() == 7 * 60 * 60
 
 
 @pytest.mark.parametrize(

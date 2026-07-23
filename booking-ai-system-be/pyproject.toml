@@ -10,6 +10,7 @@ dependencies = [
     "psycopg2-binary>=2.9",
     "pydantic-settings>=2.14",
     "python-dotenv>=1.1",
+    "tzdata>=2025.2; platform_system == 'Windows'",
     "supabase>=2",
     "openai>=1",
     "sentence-transformers>=3",

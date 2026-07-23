@@ -12,6 +12,13 @@ interface BookingLayerProps {
   onSelect: (booking: BookingViewModel) => void;
 }
 
+export const COMPACT_BOOKING_WIDTH = 48;
+
+// Chỉ rút gọn booking thực sự quá hẹp; block từ 48px trở lên vẫn hiển thị đủ ba dòng thông tin.
+export function shouldUseCompactBookingLayout(width: number): boolean {
+  return width < COMPACT_BOOKING_WIDTH;
+}
+
 // Render một booking active riêng lẻ, xử lý click và tối ưu re-render bằng memo.
 const BookingBlock = memo(function BookingBlock({
   booking,
@@ -28,7 +35,7 @@ const BookingBlock = memo(function BookingBlock({
 }) {
   // Chuyển booking hiện tại về callback selection ổn định khi người dùng mở chi tiết.
   const handleClick = useCallback(() => onSelect(booking), [booking, onSelect]);
-  const narrow = w < 80;
+  const narrow = shouldUseCompactBookingLayout(w);
 
   return (
     <button
@@ -40,9 +47,9 @@ const BookingBlock = memo(function BookingBlock({
       style={{ left: x, width: Math.max(w, MIN_BOOKING_WIDTH), top: 2, bottom: 2 }}
     >
       {narrow ? (
-        <div className="flex items-center justify-center h-full px-0.5">
-          <span className={`text-[10px] font-bold ${style.text} truncate`}>
-            {booking.customerName?.charAt(0) ?? booking.customerPhone?.charAt(0) ?? "?"}
+        <div className="flex h-full items-center justify-center px-0.5">
+          <span className={`truncate text-[9px] font-bold ${style.text}`}>
+            {booking.customerName ?? booking.customerPhone ?? "?"}
           </span>
         </div>
       ) : (

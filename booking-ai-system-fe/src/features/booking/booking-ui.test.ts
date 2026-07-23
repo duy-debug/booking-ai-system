@@ -16,6 +16,7 @@ import {
   MOBILE_PX_PER_MINUTE,
   FULL_DAY_RANGE,
 } from "./schedule.utils";
+import { shouldUseCompactBookingLayout } from "./BookingLayer";
 
 describe("FULL_DAY_RANGE (24h timeline)", () => {
   it("rangeStart = 0 (00:00)", () => {
@@ -265,5 +266,13 @@ describe("FIT_BREAKPOINT / MOBILE_PX_PER_MINUTE", () => {
 describe("Business hours timeline (giữ nguyên)", () => {
   it("buildTimelineRange 09:00-22:00 trả về {540, 1320}", () => {
     expect(buildTimelineRange("09:00", "22:00")).toEqual({ start: 540, end: 1320 });
+  });
+});
+
+describe("booking block responsive content", () => {
+  it("hiển thị đầy đủ thông tin khi block rộng từ 48px", () => {
+    expect(shouldUseCompactBookingLayout(47)).toBe(true);
+    expect(shouldUseCompactBookingLayout(48)).toBe(false);
+    expect(shouldUseCompactBookingLayout(79)).toBe(false);
   });
 });
