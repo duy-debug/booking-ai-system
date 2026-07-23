@@ -263,7 +263,7 @@ def test_group_update_keeps_parallel_duration(monkeypatch):
     assert all(res.end_time == time(17, 0) for res in reservations)
 
 
-def test_full_group_update_addresses_each_person_by_reservation_id(monkeypatch):
+def test_existing_group_cannot_change_therapists_manually(monkeypatch):
     first_id, second_id = uuid4(), uuid4()
     old_therapists = [uuid4(), uuid4()]
     reservations = [
@@ -342,17 +342,10 @@ def test_full_group_update_addresses_each_person_by_reservation_id(monkeypatch):
         ]
     )
 
-    result = instance._update(booking_id, body)
+    with pytest.raises(AppError) as error:
+        instance._update(booking_id, body)
 
-    assert [item.therapist_id for item in result.reservations] == [
-        new_therapists[0].therapist_id,
-        new_therapists[1].therapist_id,
-    ]
-    assert result.number_of_people == 2
-    assert result.total_duration_minutes == 60
-    assert result.end_time == time(15)
-    assert result.reservations[0].end_time == time(15)
-    assert result.reservations[1].end_time == time(15)
+    assert error.value.detail["code"] == "GROUP_BOOKING_CANNOT_CHANGE_THERAPIST"
 
 
 def test_group_update_rejects_different_courses_between_people():

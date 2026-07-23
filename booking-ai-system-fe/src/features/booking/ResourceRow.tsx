@@ -118,7 +118,7 @@ const ResourceRowInner = memo(function ResourceRowInner({
       <ResourceColumn name={resource.name} hasActiveShift={hasActiveShift} hasAnyShift={hasAnyShift} />
       <div
         ref={trackRef}
-        className="relative cursor-pointer bg-white"
+        className="relative shrink-0 cursor-pointer bg-white"
         style={{ width: totalWidth }}
         onClick={handleClick}
         title={earliestSelectableMinutes === Number.POSITIVE_INFINITY ? "Không thể tạo booking cho ngày trong quá khứ" : undefined}

@@ -4,6 +4,14 @@ import { describe, expect, it } from "vitest";
 import { bookingUpdateFormSchema, shouldAutoAssignTherapists, toCreatePayload, toUpdatePayload, type BookingFormValues } from "./booking-form.schema";
 
 describe("booking form backend contract", () => {
+  it("tự động phân công lại khi thay đổi kích thước booking nhóm", () => {
+    expect(shouldAutoAssignTherapists(1, 2)).toBe(true);
+    expect(shouldAutoAssignTherapists(2, 3)).toBe(true);
+    expect(shouldAutoAssignTherapists(3, 2)).toBe(true);
+    expect(shouldAutoAssignTherapists(2, 2)).toBe(false);
+    expect(shouldAutoAssignTherapists(2, 1)).toBe(false);
+  });
+
   it("creates a payload containing only backend-supported fields", () => {
     const values: BookingFormValues = {
       shopId: "shop-id",

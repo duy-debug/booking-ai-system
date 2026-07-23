@@ -293,18 +293,20 @@ class BookingService:
                 detail="Course chính và course thêm phải giống nhau cho mọi người trong booking nhóm.",
             )
 
-        converts_single_to_group = booking.number_of_people == 1 and len(items) > 1
-        if converts_single_to_group and not body.auto_assign_therapists:
+        changes_group_size = (
+            len(items) > 1 and booking.number_of_people != len(items)
+        )
+        if changes_group_size and not body.auto_assign_therapists:
             raise AppError(
                 422,
                 code="GROUP_BOOKING_REQUIRES_AUTO_ASSIGNMENT",
-                detail="Khi chuyển booking một người thành booking nhóm, therapist phải được tự động phân công.",
+                detail="Khi thay đổi số người của booking nhóm, therapist phải được tự động phân công.",
             )
-        if body.auto_assign_therapists and not converts_single_to_group:
+        if body.auto_assign_therapists and not changes_group_size:
             raise AppError(
                 422,
                 code="AUTO_ASSIGN_NOT_ALLOWED",
-                detail="Tự động phân công chỉ dùng khi chuyển booking một người thành booking nhóm.",
+                detail="Tự động phân công chỉ dùng khi thay đổi số người của booking nhóm.",
             )
 
         if body.auto_assign_therapists:
@@ -312,7 +314,7 @@ class BookingService:
                 raise AppError(
                     422,
                     code="GROUP_BOOKING_CANNOT_SPECIFY_THERAPIST",
-                    detail="Không được chỉ định therapist khi chuyển sang booking nhóm.",
+                    detail="Không được chỉ định therapist khi thay đổi số người của booking nhóm.",
                 )
             assigned_ids = self._auto_assign_group_therapists(
                 booking, items, booking_date, start_time
@@ -355,6 +357,20 @@ class BookingService:
                 code="RESERVATION_NOT_IN_BOOKING",
                 detail="Reservation không thuộc booking đang cập nhật.",
             )
+
+        if len(items) > 1 and not body.auto_assign_therapists:
+            changes_group_therapist = any(
+                item.reservation_id is None
+                or item.therapist_id
+                != existing[item.reservation_id].therapist_id
+                for item in items
+            )
+            if changes_group_therapist:
+                raise AppError(
+                    422,
+                    code="GROUP_BOOKING_CANNOT_CHANGE_THERAPIST",
+                    detail="Booking nhóm không được chỉ định hoặc thay đổi therapist thủ công.",
+                )
 
         if body.customer is not None:
             customer = self.customer_repo.find_by_phone(body.customer.phone)

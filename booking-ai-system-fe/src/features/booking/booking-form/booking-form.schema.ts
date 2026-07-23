@@ -76,12 +76,12 @@ export const bookingUpdateFormSchema = baseSchema.superRefine((values, ctx) => {
 
 export type BookingFormValues = z.infer<typeof baseSchema>;
 
-// Xác định trường hợp chuyển booking một người thành nhóm để backend tự động phân công therapist.
+// Xác định trường hợp thay đổi kích thước booking nhóm để backend tự động phân công lại therapist.
 export function shouldAutoAssignTherapists(
   originalNumberOfPeople: number,
   nextNumberOfPeople: number,
 ) {
-  return originalNumberOfPeople === 1 && nextNumberOfPeople > 1;
+  return nextNumberOfPeople > 1 && originalNumberOfPeople !== nextNumberOfPeople;
 }
 
 export interface BookingFormInitial {

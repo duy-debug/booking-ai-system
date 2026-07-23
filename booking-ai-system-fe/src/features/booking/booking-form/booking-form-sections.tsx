@@ -219,6 +219,8 @@ export function BookingReservationEditor({
   const { register, setValue, formState: { errors } } = useFormContext<BookingFormValues>();
   const reservations = (useWatch({ name: "reservations" }) ?? []) as BookingFormValues["reservations"];
   const autoAssignTherapists = useWatch({ name: "autoAssignTherapists" });
+  const numberOfPeople = useWatch({ name: "numberOfPeople" });
+  const isGroupBooking = numberOfPeople > 1;
   // Tách course chính để gán đúng trường mainCourseId cho từng reservation.
   const mainCourses = courses.filter((course) => course.courseType === "main");
   // Tách add-on để quản lý danh sách addonCourseIds độc lập với course chính.
@@ -257,9 +259,14 @@ export function BookingReservationEditor({
             <input type="hidden" {...register(`reservations.${index}.personIndex`, { valueAsNumber: true })} />
 
             <label className={fieldLabelClass}>Therapist</label>
-            {autoAssignTherapists ? (
+            {isGroupBooking ? (
               <div className="mb-3 flex h-8 items-center rounded border border-blue-200 bg-blue-50 px-2 text-[11px] font-medium text-blue-700">
-                Tự động phân công therapist khả dụng
+                {autoAssignTherapists
+                  ? "Tự động phân công therapist khả dụng khi lưu"
+                  : `Therapist đã được tự động phân công: ${
+                      therapists.find((item) => item.id === reservation.therapistId)?.name
+                      ?? "Không xác định"
+                    }`}
               </div>
             ) : (
               <>

@@ -31,7 +31,7 @@ export function ScheduleHeader({ range, pxPerMinute }: ScheduleHeaderProps) {
         className="sticky left-0 z-40 shrink-0 border-r border-zinc-200 bg-white"
         style={{ width: RESOURCE_COLUMN_WIDTH }}
       />
-      <div className="relative" style={{ width: totalWidth }}>
+      <div className="relative shrink-0" style={{ width: totalWidth }}>
         {/* Half-hour minor ticks */}
         {halfHourTicks.map((t) => (
           <div
