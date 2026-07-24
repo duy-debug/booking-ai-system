@@ -171,6 +171,21 @@ class BookingQueryService:
     def get_public_detail(self, booking_id: UUID) -> DataResponse[PublicBookingResponse]:
         return DataResponse(data=booking_to_public_response(self._require_booking(booking_id)))
 
+    # Tra cứu booking công khai khi ID và số điện thoại cùng thuộc một customer.
+    def lookup_public(
+        self,
+        booking_id: UUID,
+        phone: str,
+    ) -> DataResponse[PublicBookingResponse]:
+        booking = self.booking_repo.find_by_id_and_phone(booking_id, phone)
+        if booking is None:
+            raise AppError(
+                404,
+                code="BOOKING_NOT_FOUND_OR_PHONE_MISMATCH",
+                detail="Không tìm thấy booking phù hợp với thông tin đã cung cấp",
+            )
+        return DataResponse(data=booking_to_public_response(booking))
+
     # Lấy danh sách reservation của booking và ánh xạ course relationship thành DTO.
     def list_reservations(self, booking_id: UUID) -> CollectionResponse[ReservationResponse]:
         self._require_booking(booking_id)

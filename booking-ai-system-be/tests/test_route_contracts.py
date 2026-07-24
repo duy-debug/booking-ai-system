@@ -11,6 +11,14 @@ def test_admin_schedule_route_replaces_singular_booking_route():
     assert "/api/admin/bookings/{booking_id}" in paths
 
 
+# Xác nhận Swagger công bố endpoint lookup có body thay vì đưa số điện thoại lên query string.
+def test_public_booking_lookup_uses_post_request_body():
+    operation = app.openapi()["paths"]["/api/bookings/lookup"]["post"]
+
+    assert "requestBody" in operation
+    assert operation["responses"]["200"]["content"]["application/json"]["schema"]
+
+
 # Xác nhận mọi endpoint thành công đều công bố response schema cụ thể cho Swagger.
 def test_every_openapi_operation_has_non_empty_success_schema():
     schema = app.openapi()

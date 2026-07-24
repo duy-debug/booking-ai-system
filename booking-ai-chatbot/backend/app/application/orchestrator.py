@@ -6,6 +6,7 @@ from app.application.booking_workflow import BookingWorkflow
 from app.application.contracts import ConversationStore
 from app.application.create_booking_flow import CreateBookingFlow
 from app.application.intent_router import RouteTarget, route_intent
+from app.application.lookup_booking_flow import LookupBookingFlow
 from app.application.nlu import StructuredNLU
 from app.core.exceptions import AppError
 from app.domain.intent import Intent
@@ -72,18 +73,26 @@ class ConversationOrchestrator:
             result = await self._nlu.parse(query)
             if result.entities and result.intent in {Intent.FAQ, Intent.UNKNOWN}:
                 state = await self._store.get_state(conversation_id)
-                if state.intent == Intent.CREATE_BOOKING.value:
-                    result.intent = Intent.CREATE_BOOKING
+                active_intent = self._active_booking_intent(state.intent)
+                if active_intent is not None:
+                    result.intent = active_intent
                     result.resource = "booking"
-                    result.operation = "create"
+                    result.operation = {
+                        Intent.CREATE_BOOKING: "create",
+                        Intent.LOOKUP_BOOKING: "lookup",
+                    }[active_intent]
             return result
 
         state = await self._store.get_state(conversation_id)
-        if selection and state.intent == Intent.CREATE_BOOKING.value:
+        active_intent = self._active_booking_intent(state.intent)
+        if selection and active_intent is not None:
             return NLUResult(
-                intent=Intent.CREATE_BOOKING,
+                intent=active_intent,
                 resource="booking",
-                operation="create",
+                operation={
+                    Intent.CREATE_BOOKING: "create",
+                    Intent.LOOKUP_BOOKING: "lookup",
+                }[active_intent],
                 entities={},
             )
         raise AppError(
@@ -92,24 +101,41 @@ class ConversationOrchestrator:
             detail="Không tìm thấy workflow đang hoạt động cho lựa chọn này.",
         )
 
+    # Chỉ khôi phục các booking workflow đã được triển khai đầy đủ cho lượt hội thoại tiếp theo.
+    @staticmethod
+    def _active_booking_intent(intent: str | None) -> Intent | None:
+        if intent == Intent.CREATE_BOOKING.value:
+            return Intent.CREATE_BOOKING
+        if intent == Intent.LOOKUP_BOOKING.value:
+            return Intent.LOOKUP_BOOKING
+        return None
+
 
 # Tạo orchestrator mặc định tại composition root mà không đưa FastAPI Depends vào service.
 def build_orchestrator() -> ConversationOrchestrator:
     store = get_conversation_store()
+    gateway = HttpBookingGateway()
     workflow = BookingWorkflow(
-        gateway=HttpBookingGateway(),
+        gateway=gateway,
         conversation_store=store,
     )
     create_booking_flow = CreateBookingFlow(
         conversation_store=store,
         mutation_tools=MutationTools(workflow),
     )
+    lookup_booking_flow = LookupBookingFlow(
+        conversation_store=store,
+        booking_gateway=gateway,
+    )
     return ConversationOrchestrator(
         nlu=StructuredNLU(),
         conversation_store=store,
         handlers={
             RouteTarget.INFORMATION: InformationHandler(),
-            RouteTarget.BOOKING_WORKFLOW: BookingConversationHandler(create_booking_flow),
+            RouteTarget.BOOKING_WORKFLOW: BookingConversationHandler(
+                create_booking_flow,
+                lookup_booking_flow,
+            ),
             RouteTarget.FAQ: FAQHandler(),
             RouteTarget.GENERAL: GeneralHandler(),
             RouteTarget.CLARIFY: ClarificationHandler(),

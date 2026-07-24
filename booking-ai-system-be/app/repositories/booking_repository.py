@@ -55,6 +55,25 @@ class BookingRepository:
         )
         return self.session.scalar(stmt)
 
+    # Tìm booking theo ID và số điện thoại của customer để bảo vệ luồng tra cứu công khai.
+    def find_by_id_and_phone(self, booking_id: UUID, phone: str) -> Booking | None:
+        stmt = (
+            select(Booking)
+            .where(
+                Booking.booking_id == booking_id,
+                Booking.customer.has(phone=phone),
+            )
+            .options(
+                joinedload(Booking.reservations)
+                .joinedload(Reservation.therapist),
+                joinedload(Booking.reservations)
+                .joinedload(Reservation.reservation_courses),
+                joinedload(Booking.customer),
+                joinedload(Booking.shop),
+            )
+        )
+        return self.session.scalar(stmt)
+
     # Danh sách booking public — lọc theo phone, shop, ngày, status (cursor-based)
     def find_public_all(
         self,

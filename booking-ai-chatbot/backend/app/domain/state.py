@@ -7,6 +7,8 @@ from typing import Any
 
 class ConversationStep(StrEnum):
     IDLE = "idle"
+    LOOKUP_COLLECT_BOOKING_ID = "lookup_collect_booking_id"
+    LOOKUP_COLLECT_PHONE = "lookup_collect_phone"
     COLLECT_SHOP = "collect_shop"
     COLLECT_SERVICE = "collect_service"
     COLLECT_ADDONS = "collect_addons"

@@ -1,16 +1,22 @@
 from typing import Any
 
 from app.application.create_booking_flow import CreateBookingFlow
+from app.application.lookup_booking_flow import LookupBookingFlow
 from app.domain.intent import Intent
 from app.domain.nlu import NLUResult
 
 
 class BookingConversationHandler:
-    # Nhận create flow đã cấu hình để handler chỉ chịu trách nhiệm dispatch intent.
-    def __init__(self, create_booking_flow: CreateBookingFlow) -> None:
+    # Nhận từng workflow qua constructor để handler chỉ chịu trách nhiệm dispatch intent.
+    def __init__(
+        self,
+        create_booking_flow: CreateBookingFlow,
+        lookup_booking_flow: LookupBookingFlow,
+    ) -> None:
         self._create_booking_flow = create_booking_flow
+        self._lookup_booking_flow = lookup_booking_flow
 
-    # Xác định dữ liệu còn thiếu; chỉ mutation tool mới được thực thi sau confirmation gate.
+    # Chuyển từng booking intent sang workflow tương ứng, không gọi integration trực tiếp.
     async def handle(
         self,
         _query: str,
@@ -25,14 +31,14 @@ class BookingConversationHandler:
                 selection=selection,
             )
         if nlu.intent is Intent.LOOKUP_BOOKING:
-            return {
-                "answer": "Vui lòng cung cấp mã booking và xác thực số điện thoại.",
-                "missing_entities": ["booking_id", "verification"],
-                "conversation_id": conversation_id,
-            }
+            return await self._lookup_booking_flow.handle(
+                conversation_id=conversation_id,
+                nlu=nlu,
+                selection=selection,
+            )
         action = "đổi" if nlu.intent is Intent.UPDATE_BOOKING else "hủy"
         return {
-            "answer": (f"Vui lòng cung cấp mã booking và xác thực khách hàng để {action} lịch."),
-            "missing_entities": ["booking_id", "verification"],
+            "answer": f"Vui lòng cung cấp mã booking và số điện thoại để {action} lịch.",
+            "missing_entities": ["booking_id", "customer_phone"],
             "conversation_id": conversation_id,
         }

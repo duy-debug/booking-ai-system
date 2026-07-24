@@ -49,6 +49,8 @@ class UIBlock(BaseModel):
         "booking_summary",
         "confirmation",
         "booking_result",
+        "booking_lookup_form",
+        "booking_detail",
     ]
     options: list[UIOption] = Field(default_factory=list)
     data: dict[str, Any] = Field(default_factory=dict)

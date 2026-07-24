@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db, parse_uuid
 from app.schemas.booking import (
     BookingCreate,
+    BookingLookupInput,
     PublicBookingListItem,
     PublicBookingResponse,
     BookingPatchInput,
@@ -31,6 +32,13 @@ def create_booking(
     service = BookingService(db)
     result = PublicBookingResponse.model_validate(service.create(body, idempotency_key))
     return DataResponse(data=result)
+
+
+# Tra cứu booking bằng ID và số điện thoại mà không cần OTP.
+@router.post("/lookup", response_model=DataResponse[PublicBookingResponse])
+def lookup_booking(body: BookingLookupInput, db: Session = Depends(get_db)):
+    service = BookingQueryService(db)
+    return service.lookup_public(body.booking_id, body.phone)
 
 
 # Danh sách booking công khai — lọc theo số điện thoại, mã POS, ngày, trạng thái (cursor-based)

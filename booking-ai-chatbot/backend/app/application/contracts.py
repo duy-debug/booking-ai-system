@@ -5,6 +5,13 @@ from app.domain.state import ConversationState
 
 
 class BookingGateway(Protocol):
+    # Tra cứu booking khi ID và số điện thoại cùng khớp với dữ liệu của khách hàng.
+    async def lookup_booking(
+        self,
+        booking_id: str,
+        phone: str,
+    ) -> dict[str, Any]: ...
+
     # Định nghĩa thao tác tạo booking mà application được phép gọi.
     async def create_booking(
         self, payload: dict[str, Any], idempotency_key: str

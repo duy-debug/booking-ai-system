@@ -39,6 +39,12 @@ class BookingCreate(BaseModel):
     confirmed_by_customer: bool = True
 
 
+# Dữ liệu tra cứu booking công khai — đối chiếu đồng thời booking và số điện thoại chủ sở hữu.
+class BookingLookupInput(BaseModel):
+    booking_id: UUID
+    phone: str = Field(..., pattern=r"^0\d{9,10}$")
+
+
 # Cập nhật booking — các field có thể thay đổi
 class BookingUpdate(BaseModel):
     booking_date: date | None = None

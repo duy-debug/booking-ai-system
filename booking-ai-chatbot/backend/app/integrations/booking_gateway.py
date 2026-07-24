@@ -6,6 +6,10 @@ from app.integrations import booking_api
 
 
 class HttpBookingGateway:
+    # Tra cứu booking bằng contract công khai có đối chiếu số điện thoại chủ booking.
+    async def lookup_booking(self, booking_id: str, phone: str) -> dict[str, Any]:
+        return await booking_api.lookup_booking(booking_id, phone)
+
     # Tạo booking qua đúng Public Booking API và truyền idempotency key.
     async def create_booking(self, payload: dict[str, Any], idempotency_key: str) -> dict[str, Any]:
         return await booking_api.create_booking(payload, idempotency_key)

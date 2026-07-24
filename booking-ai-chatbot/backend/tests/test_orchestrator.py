@@ -22,6 +22,20 @@ async def test_nlu_returns_structured_entities_without_calling_tool():
     assert result.entities["phone"] == "0901234567"
 
 
+# Trích xuất UUID booking để lượt tiếp theo của lookup workflow không phụ thuộc label UI.
+@pytest.mark.asyncio
+async def test_nlu_extracts_booking_id() -> None:
+    booking_id = "6f1f99b2-b3f7-4d13-a95e-98e1c808a805"
+
+    result = await StructuredNLU().parse(
+        f"Tra cứu booking {booking_id}, số 0901234567"
+    )
+
+    assert result.intent is Intent.LOOKUP_BOOKING
+    assert result.entities["booking_id"] == booking_id
+    assert result.entities["phone"] == "0901234567"
+
+
 def test_router_sends_dynamic_information_to_information_handler():
     result = NLUResult(
         intent=Intent.SHOP_INFO,

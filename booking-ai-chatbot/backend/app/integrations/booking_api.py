@@ -183,6 +183,15 @@ async def create_booking(
     )
 
 
+# Tra cứu booking bằng ID và số điện thoại qua endpoint không yêu cầu OTP.
+async def lookup_booking(booking_id: str, phone: str) -> dict[str, Any]:
+    return await _request(
+        "POST",
+        "/api/bookings/lookup",
+        json={"booking_id": booking_id, "phone": phone},
+    )
+
+
 # Lấy chi tiết booking từ public API.
 async def get_booking(booking_id: str) -> dict[str, Any]:
     return await _request("GET", f"/api/bookings/{booking_id}")
